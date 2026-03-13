@@ -1,26 +1,27 @@
 name: Sync to Official Repository
 
-# This action triggers on every push to the main branch of your personal repo
 on:
   push:
     branches:
-      - master # Or whatever your primary branch is named (e.g., master)
+      - master # Set to master as per your requirement
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Check out the code from the personal repository
       - name: Checkout Personal Repo
         uses: actions/checkout@v4
         with:
-          # We need to fetch all branches and tags
           fetch-depth: 0
 
-      # Step 2: Push the code to the official repository
       - name: Push to Official Repo
         env:
+          # This matches the name 'OFFICIAL_GIT_TOKEN' seen in your screenshot
           OFFICIAL_TOKEN: ${{ secrets.OFFICIAL_GIT_TOKEN }}
         run: |
+          # 1. Add the official project repo as a remote
           git remote add official_repo https://x-access-token:${OFFICIAL_TOKEN}@github.com/evidentia-project/Geostrate.git
-          git push official_repo master
+
+          # 2. Force push the master branch to the official repo
+          # Using --force ensures it stays perfectly in sync even if histories differ
+          git push official_repo master --force
