@@ -220,21 +220,55 @@ async function startServer() {
       });
 
       // 5. Generate Report
-      const report = generateReport({
-        cipf: cipfResults,
-        confidence,
-        evidence,
-        parsedData
-      });
+      const report = `Geostrate CIPF v4.0 Report\nΨ_final: ${cipfResults.Psi_final.toFixed(4)}\nStatus: ${cipfResults.Psi_final >= 0.387 ? 'VIABLE' : 'CRITICAL RISK'}\nConfidence: ${(confidence.C_final * 100).toFixed(1)}%`;
 
-      res.json({
-        parsedData,
-        evidence,
-        cipf: cipfResults,
-        confidence,
-        report,
-        inputs
+    // Save Analysis History to Database
+    const { guestName, guestEmail, guestMobile, guestCountry } = req.body;
+    const riskScore = parsedData?.executiveSummary?.globalRiskIndicator || 0;
+    
+    let userId = null;
+    let userType = 'guest';
+    const authTokenForHistory = req.headers.authorization?.split(' ')[1];
+    
+    if (authTokenForHistory) {
+      try {
+        const jwt = (await import('jsonwebtoken')).default;
+        const JWT_SECRET_LOCAL = process.env.JWT_SECRET || 'fallback_secret';
+        const decoded: any = jwt.verify(authTokenForHistory, JWT_SECRET_LOCAL);
+        if (decoded.userId) {
+          userId = decoded.userId;
+          userType = 'user';
+        }
+      } catch {}
+    }
+
+    try {
+      await AnalysisLog.create({
+        userType,
+        userId,
+        guestDetails: {
+          name: guestName || '',
+          email: guestEmail || '',
+          mobile: guestMobile || '',
+          country: guestCountry || ''
+        },
+        problem,
+        riskScore,
+        psiScore: cipfResults.Psi_final,
+        timestamp: new Date().toISOString()
       });
+    } catch (err) {
+      console.error('Failed to save analysis log:', err);
+    }
+
+    res.status(200).json({
+      parsedData,
+      evidence,
+      cipf: cipfResults,
+      confidence,
+      report,
+      inputs
+    });
 
     } catch (error: any) {
       console.error(error);
@@ -243,7 +277,7 @@ async function startServer() {
   });
 
   // ===== SUBSCRIPTION & PROMO API (MongoDB) =====
-  const { connectDB, PromoCode, Subscriber, PendingRequest, Plan, AdminConfig, User } = await import('./api/db.js');
+  const { connectDB, PromoCode, Subscriber, PendingRequest, Plan, AdminConfig, User, AnalysisLog } = await import('./api/db.js');
   const bcrypt = (await import('bcryptjs')).default;
   const jwt = (await import('jsonwebtoken')).default;
   const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';

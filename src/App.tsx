@@ -163,7 +163,14 @@ function AppContent() {
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ apiKey: hasStoredKey ? undefined : apiKey, problem: problem.trim() })
+        body: JSON.stringify({ 
+          apiKey: hasStoredKey ? undefined : apiKey, 
+          problem: problem.trim(),
+          guestName: guestName.trim(),
+          guestEmail: guestEmail.trim(),
+          guestMobile: guestMobile.trim(),
+          guestCountry: guestCountry.trim()
+        })
       });
       
       const text = await response.text();
@@ -285,7 +292,7 @@ function AppContent() {
         <main className="flex-grow flex items-center justify-center px-4 py-12">
           <div className="w-full max-w-lg">
             <div className="text-center mb-8">
-              <Globe className="w-12 h-12 text-blue-500 mx-auto mb-3 opacity-80" />
+              {/* <Globe className="w-12 h-12 text-blue-500 mx-auto mb-3 opacity-80" /> */}
               <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Strategic Intelligence Briefing</h2>
               <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Enter details to generate your analysis</p>
             </div>

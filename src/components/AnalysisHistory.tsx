@@ -1,19 +1,47 @@
 import React from 'react';
 import { History, Trash2 } from 'lucide-react';
 import { getHistoryEntries, clearHistory, HistoryEntry } from '../lib/history';
+import { useUser } from '../context/UserContext';
 
 interface Props {
   onSelect: (problem: string) => void;
 }
 
 export default function AnalysisHistory({ onSelect }: Props) {
+  const { user, token } = useUser();
   const [entries, setEntries] = React.useState<HistoryEntry[]>([]);
   const [isOpen, setIsOpen] = React.useState(false);
 
   // Load entries on mount and whenever the panel is toggled
   React.useEffect(() => {
-    setEntries(getHistoryEntries());
-  }, [isOpen]);
+    async function loadHistory() {
+      if (user && token) {
+        try {
+          const res = await fetch('/api/history', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            // Map the DB schema to match the local HistoryEntry interface
+            const mappedEntries = data.history.map((h: any) => ({
+              id: h._id,
+              problem: h.problem,
+              timestamp: new Date(h.timestamp).getTime(),
+              riskIndicator: h.riskScore,
+              psiScore: h.psiScore
+            }));
+            setEntries(mappedEntries);
+            return;
+          }
+        } catch (err) {
+          console.error('Failed to load DB history', err);
+        }
+      }
+      // Fallback to local storage for guests or if fetch defaults
+      setEntries(getHistoryEntries());
+    }
+    loadHistory();
+  }, [isOpen, user, token]);
 
   return (
     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-sm shadow-sm overflow-hidden">
@@ -60,8 +88,9 @@ export default function AnalysisHistory({ onSelect }: Props) {
                 <button
                   onClick={() => { clearHistory(); setEntries([]); }}
                   className="text-[10px] text-rose-500 hover:text-rose-400 flex items-center gap-1 uppercase tracking-widest font-bold"
+                  title={user ? "Clears local history only. Server history is permanent." : "Clear history"}
                 >
-                  <Trash2 className="w-3 h-3" /> Clear History
+                  <Trash2 className="w-3 h-3" /> Clear Local History
                 </button>
               </div>
             </>

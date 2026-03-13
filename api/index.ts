@@ -1,7 +1,7 @@
 // Vercel Serverless Function — Full Router (mirrors server.ts)
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
-import { connectDB, User, Plan, PromoCode, PendingRequest, Subscriber, AdminConfig } from './db.js';
+import { connectDB, User, Plan, PromoCode, PendingRequest, Subscriber, AdminConfig, AnalysisLog } from './db.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { GoogleGenAI } from '@google/genai';
@@ -483,6 +483,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // ═══════════ PUBLIC ROUTES ═══════════
 
+    // GET /api/history
+    if (path === '/api/history' && req.method === 'GET') {
+      const userId = await requireUser();
+      if (!userId) return;
+      const history = await AnalysisLog.find({ userId }).sort({ timestamp: -1 }).limit(50).lean();
+      return res.json({ history });
+    }
+
     // GET /api/plans
     if (path === '/api/plans' && req.method === 'GET') {
       const plans = await Plan.find({}).sort({ price: 1 });
@@ -558,11 +566,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // GET /api/admin/data
     if (path === '/api/admin/data' && req.method === 'GET') {
       if (!requireAdmin()) return;
-      const [promoCodes, subscribers, pendingRequests, plans] = await Promise.all([
+      const [promoCodes, subscribers, pendingRequests, plans, analysisLogs] = await Promise.all([
         PromoCode.find().lean(), User.find({ plan: { $ne: null } }).select('-passwordHash').lean(),
-        PendingRequest.find({ status: 'pending' }).lean(), Plan.find().lean()
+        PendingRequest.find({ status: 'pending' }).lean(), Plan.find().lean(), AnalysisLog.find().sort({ timestamp: -1 }).limit(200).lean()
       ]);
-      return res.json({ promoCodes, subscribers, pendingRequests, plans });
+      return res.json({ promoCodes, subscribers, pendingRequests, plans, analysisLogs });
     }
 
     // POST /api/admin/data
@@ -741,6 +749,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const avgRelevance = evidence.historicalCases.reduce((acc, c) => acc + c.relevance, 0) / evidence.historicalCases.length;
       const confidence = { C_final: (0.8 + avgRelevance * 0.1 + 0.75 + avgRelevance * 0.1 + 0.85 + 0.80) / 4 };
       const report = `Geostrate CIPF v4.0 Report\nΨ_final: ${cipfResults.Psi_final.toFixed(4)}\nStatus: ${cipfResults.Psi_final >= 0.387 ? 'VIABLE' : 'CRITICAL RISK'}\nConfidence: ${(confidence.C_final * 100).toFixed(1)}%`;
+
+      // Save Analysis History to Database
+      const { guestName, guestEmail, guestMobile, guestCountry } = req.body;
+      const riskScore = parsedData?.executiveSummary?.globalRiskIndicator || 0;
+      
+      let userId = null;
+      let userType = 'guest';
+      if (authToken) {
+        try {
+          const decoded: any = jwt.verify(authToken, JWT_SECRET);
+          if (decoded.userId) {
+            userId = decoded.userId;
+            userType = 'user';
+          }
+        } catch {}
+      }
+
+      try {
+        await AnalysisLog.create({
+          userType,
+          userId,
+          guestDetails: {
+            name: guestName || '',
+            email: guestEmail || '',
+            mobile: guestMobile || '',
+            country: guestCountry || ''
+          },
+          problem,
+          riskScore,
+          psiScore: cipfResults.Psi_final,
+          timestamp: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error('Failed to save analysis log:', err);
+      }
 
       return res.status(200).json({ parsedData, evidence, cipf: cipfResults, confidence, report, inputs });
     }

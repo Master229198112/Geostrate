@@ -75,6 +75,21 @@ const userSchema = new mongoose.Schema({
   encryptedApiKey:  { type: String, default: null },  // user's personal API key (AES-256 encrypted)
 }, { timestamps: true, strict: false });
 
+const analysisLogSchema = new mongoose.Schema({
+  userType:       { type: String, required: true }, // 'guest' | 'user'
+  userId:         { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  guestDetails:   {
+    name:         { type: String, default: '' },
+    email:        { type: String, default: '' },
+    mobile:       { type: String, default: '' },
+    country:      { type: String, default: '' }
+  },
+  problem:        { type: String, required: true },
+  riskScore:      { type: Number, required: true },
+  psiScore:       { type: Number, required: true },
+  timestamp:      { type: String, required: true }  // ISO String
+}, { timestamps: true, strict: false });
+
 // ===== MODELS =====
 export const PromoCode: mongoose.Model<any>      = mongoose.models.PromoCode      || mongoose.model('PromoCode', promoCodeSchema);
 export const Subscriber: mongoose.Model<any>     = mongoose.models.Subscriber     || mongoose.model('Subscriber', subscriberSchema);
@@ -82,3 +97,4 @@ export const PendingRequest: mongoose.Model<any> = mongoose.models.PendingReques
 export const Plan: mongoose.Model<any>           = mongoose.models.Plan           || mongoose.model('Plan', planSchema);
 export const AdminConfig: mongoose.Model<any>    = mongoose.models.AdminConfig    || mongoose.model('AdminConfig', adminConfigSchema);
 export const User: mongoose.Model<any>           = mongoose.models.User           || mongoose.model('User', userSchema);
+export const AnalysisLog: mongoose.Model<any>    = mongoose.models.AnalysisLog    || mongoose.model('AnalysisLog', analysisLogSchema);
