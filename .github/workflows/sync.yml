@@ -4,7 +4,7 @@ name: Sync to Official Repository
 on:
   push:
     branches:
-      - main # Or whatever your primary branch is named (e.g., master)
+      - master # Or whatever your primary branch is named (e.g., master)
 
 jobs:
   sync:
@@ -23,4 +23,4 @@ jobs:
           OFFICIAL_TOKEN: ${{ secrets.OFFICIAL_GIT_TOKEN }}
         run: |
           git remote add official_repo https://x-access-token:${OFFICIAL_TOKEN}@github.com/evidentia-project/Geostrate.git
-          git push official_repo main
+          git push official_repo master
