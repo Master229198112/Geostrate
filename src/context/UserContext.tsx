@@ -54,7 +54,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) throw new Error('Session expired');
-    const data = await res.json();
+    const text = await res.text();
+    let data: any;
+    try { data = JSON.parse(text); } catch { throw new Error('Session expired'); }
     setUser(data.user);
   };
 
@@ -64,7 +66,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    const data = await res.json();
+    const text = await res.text();
+    let data: any;
+    try { data = JSON.parse(text); } catch { throw new Error('Server error. Please try again later.'); }
     if (!res.ok) throw new Error(data.error || 'Login failed');
 
     localStorage.setItem('geostrate_user_token', data.token);
@@ -78,7 +82,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password })
     });
-    const data = await res.json();
+    const text = await res.text();
+    let data: any;
+    try { data = JSON.parse(text); } catch { throw new Error('Server error. Please try again later.'); }
     if (!res.ok) throw new Error(data.error || 'Registration failed');
 
     localStorage.setItem('geostrate_user_token', data.token);
