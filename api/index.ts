@@ -1,6 +1,11 @@
 // Vercel Serverless Function — Full Router (mirrors server.ts)
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
+import { connectDB, User, Plan, PromoCode, PendingRequest, Subscriber, AdminConfig } from '../src/backend/db';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { GoogleGenAI } from '@google/genai';
+import Razorpay from 'razorpay';
 
 // ===== CORS =====
 function setCORS(req: VercelRequest, res: VercelResponse) {
@@ -102,7 +107,6 @@ function safeRepairJSON(text: string): string {
 }
 
 async function parseProblem(apiKey: string, problem: string, retryCount: number = 0) {
-  const { GoogleGenAI } = await import('@google/genai');
   const ai = new GoogleGenAI({ apiKey });
 
   let call1Result: any;
@@ -251,22 +255,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // ===== DB + JWT SETUP (lazy, shared) =====
-  let connectDB: any, User: any, Plan: any, PromoCode: any, PendingRequest: any, Subscriber: any, AdminConfig: any;
-  let bcrypt: any, jwt: any;
+  // ===== DB SETUP =====
   const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 
   try {
-    const dbModule = await import('../src/backend/db');
-    connectDB = dbModule.connectDB;
-    User = dbModule.User;
-    Plan = dbModule.Plan;
-    PromoCode = dbModule.PromoCode;
-    PendingRequest = dbModule.PendingRequest;
-    Subscriber = dbModule.Subscriber;
-    AdminConfig = dbModule.AdminConfig;
-    bcrypt = (await import('bcryptjs')).default;
-    jwt = (await import('jsonwebtoken')).default;
     await connectDB();
   } catch (dbErr: any) {
     console.error('[Vercel] DB/Setup error:', dbErr.message);
@@ -420,7 +412,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (path === '/api/payment/create-order' && req.method === 'POST') {
       const userId = await requireUser();
       if (!userId) return;
-      const Razorpay = (await import('razorpay')).default;
       const razorpay = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID || '', key_secret: process.env.RAZORPAY_KEY_SECRET || '' });
       const { planId } = req.body;
       const user = await User.findById(userId);
