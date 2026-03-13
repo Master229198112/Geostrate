@@ -1,7 +1,7 @@
 // Vercel Serverless Function — Full Router (mirrors server.ts)
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
-import { connectDB, User, Plan, PromoCode, PendingRequest, Subscriber, AdminConfig } from '../src/backend/db';
+import { connectDB, User, Plan, PromoCode, PendingRequest, Subscriber, AdminConfig } from './db';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { GoogleGenAI } from '@google/genai';
