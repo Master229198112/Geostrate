@@ -273,8 +273,13 @@ function generateReport(r: any) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
   const origin = req.headers.origin || '';
-  const allowed = ['http://localhost:3000', 'http://localhost:5173'];
-  if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app')) {
+  const allowed = [
+    'http://localhost:3000', 
+    'http://localhost:5173', 
+    'https://geostrate.aircwou.in',
+    'https://geostrate.vercel.app'
+  ];
+  if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app') || origin.endsWith('.aircwou.in')) {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');

@@ -71,8 +71,13 @@ async function startServer() {
   // CORS
   app.use((req, res, next) => {
     const origin = req.headers.origin || '';
-    const allowed = ['http://localhost:3000', 'http://localhost:5173'];
-    if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app')) {
+    const allowed = [
+      'http://localhost:3000', 
+      'http://localhost:5173', 
+      'https://geostrate.aircwou.in',
+      'https://geostrate.vercel.app'
+    ];
+    if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app') || origin.endsWith('.aircwou.in')) {
       res.header('Access-Control-Allow-Origin', origin || '*');
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
