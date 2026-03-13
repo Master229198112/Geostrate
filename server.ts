@@ -153,7 +153,7 @@ async function startServer() {
           const JWT_SECRET_LOCAL = process.env.JWT_SECRET || 'fallback_secret';
           const decoded: any = jwt.verify(authToken, JWT_SECRET_LOCAL);
           if (decoded.userId) {
-            const { User, Plan } = await import('./api/db');
+            const { User, Plan } = await import('./api/db.js');
             const user = await User.findById(decoded.userId);
             if (user) {
               // Priority: user's personal key > plan-level key
@@ -243,7 +243,7 @@ async function startServer() {
   });
 
   // ===== SUBSCRIPTION & PROMO API (MongoDB) =====
-  const { connectDB, PromoCode, Subscriber, PendingRequest, Plan, AdminConfig, User } = await import('./api/db');
+  const { connectDB, PromoCode, Subscriber, PendingRequest, Plan, AdminConfig, User } = await import('./api/db.js');
   const bcrypt = (await import('bcryptjs')).default;
   const jwt = (await import('jsonwebtoken')).default;
   const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
