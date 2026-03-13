@@ -20,7 +20,7 @@ jobs:
       # Step 2: Push the code to the official repository
       - name: Push to Official Repo
         env:
-          OFFICIAL_TOKEN: ${{ secrets.OFFICIAL_GIT_TOKEN }}
+          OFFICIAL_TOKEN: ${{ secrets.GEOSTRATE }}
         run: |
           git remote add official_repo https://x-access-token:${OFFICIAL_TOKEN}@github.com/evidentia-project/Geostrate.git
           git push official_repo main
