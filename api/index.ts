@@ -238,12 +238,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Strip query string for matching
   const path = url.split('?')[0].replace(/\/+$/, '');
 
+  // ===== HEALTH CHECK (no DB needed) =====
+  if (path === '/api/health' && req.method === 'GET') {
+    return res.status(200).json({
+      ok: true,
+      env: {
+        MONGODB_URI: !!process.env.MONGODB_URI,
+        JWT_SECRET: !!process.env.JWT_SECRET,
+        RAZORPAY_KEY_ID: !!process.env.RAZORPAY_KEY_ID,
+        YOUTUBE_API_KEY: !!process.env.YOUTUBE_API_KEY,
+      }
+    });
+  }
+
   // ===== DB + JWT SETUP (lazy, shared) =====
-  const { connectDB, User, Plan, PromoCode, PendingRequest, Subscriber, AdminConfig } = await import('../src/backend/db');
-  const bcrypt = (await import('bcryptjs')).default;
-  const jwt = (await import('jsonwebtoken')).default;
+  let connectDB: any, User: any, Plan: any, PromoCode: any, PendingRequest: any, Subscriber: any, AdminConfig: any;
+  let bcrypt: any, jwt: any;
   const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
-  await connectDB();
+
+  try {
+    const dbModule = await import('../src/backend/db');
+    connectDB = dbModule.connectDB;
+    User = dbModule.User;
+    Plan = dbModule.Plan;
+    PromoCode = dbModule.PromoCode;
+    PendingRequest = dbModule.PendingRequest;
+    Subscriber = dbModule.Subscriber;
+    AdminConfig = dbModule.AdminConfig;
+    bcrypt = (await import('bcryptjs')).default;
+    jwt = (await import('jsonwebtoken')).default;
+    await connectDB();
+  } catch (dbErr: any) {
+    console.error('[Vercel] DB/Setup error:', dbErr.message);
+    return res.status(500).json({
+      error: `Server setup failed: ${dbErr.message}`,
+      hint: 'Ensure MONGODB_URI, JWT_SECRET are set in Vercel Environment Variables'
+    });
+  }
 
   // Helper: require user auth
   const requireUser = async (): Promise<string | null> => {
