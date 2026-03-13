@@ -3,7 +3,7 @@ name: Sync to Official Repository
 on:
   push:
     branches:
-      - master
+      - Master
 
 jobs:
   sync:
@@ -25,4 +25,4 @@ jobs:
           
           # Add remote and push
           git remote add official_repo https://x-access-token:${OFFICIAL_TOKEN}@github.com/evidentia-project/Geostrate.git
-          git push official_repo master --force
+          git push official_repo Master --force
