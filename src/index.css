@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* Dark mode support via class */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+/* Range slider accent for dark mode */
+.dark input[type="range"] {
+  accent-color: #60a5fa;
+}
+
+/* Smooth dark mode transition */
+body {
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+/* Leaflet Actor Map Tooltip */
+.actor-tooltip {
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+  border-radius: 2px !important;
+  padding: 10px 12px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  color: #f1f5f9 !important;
+  font-family: inherit !important;
+}
+.actor-tooltip::before {
+  border-top-color: #334155 !important;
+}
+.leaflet-tooltip-top::before {
+  border-top-color: #334155 !important;
+}
+.leaflet-tooltip-bottom::before {
+  border-bottom-color: #334155 !important;
+}
+
+/* Institutional Stress pulsing ring animation (opacity only, no transform to avoid Leaflet SVG jitter) */
+.stress-pulse {
+  animation: stressPulse 2s ease-in-out infinite;
+}
+@keyframes stressPulse {
+  0%, 100% { opacity: 0.8; stroke-width: 2; }
+  50% { opacity: 0.25; stroke-width: 4; }
+}
+
+/* Sector panel scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 3px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
