@@ -12,6 +12,8 @@ import {
   Crown,
   BarChart3,
   Sliders,
+  Search,
+  Plus,
 } from "lucide-react";
 
 interface Props {
@@ -47,6 +49,20 @@ export default function AdminPanel({ onClose }: Props) {
   const [confirmPass, setConfirmPass] = useState("");
   const [passMsg, setPassMsg] = useState("");
   const [passError, setPassError] = useState("");
+
+  // Variable tab state
+  const [varSearch, setVarSearch] = useState("");
+  const [showAddVar, setShowAddVar] = useState(false);
+  const [newVar, setNewVar] = useState<any>({
+    symbol: "",
+    name: "",
+    description: "",
+    metric: "SCM",
+    layer: 0,
+    weight: 0.25,
+    defaultValue: 0.5,
+    isActive: true,
+  });
 
   useEffect(() => {
     if (token) fetchData();
@@ -1022,15 +1038,147 @@ export default function AdminPanel({ onClose }: Props) {
               {/* TAB: VARIABLES & FORMULAS */}
               {tab === "vars" && (
                 <div>
-                  <div className="flex justify-between items-center mb-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 uppercase tracking-widest flex items-center gap-2">
                       <Sliders className="w-5 h-5 text-indigo-500" /> Variables & Formulas
                     </h2>
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                      <div className="relative flex-1 sm:w-64">
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Search variables..."
+                          className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-sm pl-9 pr-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                          value={varSearch}
+                          onChange={(e) => setVarSearch(e.target.value)}
+                        />
+                      </div>
+                      <button
+                        onClick={() => setShowAddVar(true)}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-sm text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                      >
+                        <Plus className="w-4 h-4" /> Add Variable
+                      </button>
+                    </div>
                   </div>
+
+                  {showAddVar && (
+                    <div className="bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-900/50 rounded-sm p-6 shadow-sm mb-6 relative">
+                      <button
+                        onClick={() => setShowAddVar(false)}
+                        className="absolute top-4 right-4 p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-sm text-slate-500 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-widest mb-4">
+                        Add New Variable
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Symbol *</label>
+                          <input
+                            type="text"
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-sm px-3 py-2 text-sm text-slate-700 dark:text-slate-200"
+                            placeholder="e.g. TPI"
+                            value={newVar.symbol}
+                            onChange={(e) => setNewVar({...newVar, symbol: e.target.value.toUpperCase()})}
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Name *</label>
+                          <input
+                            type="text"
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-sm px-3 py-2 text-sm text-slate-700 dark:text-slate-200"
+                            placeholder="Variable Name"
+                            value={newVar.name}
+                            onChange={(e) => setNewVar({...newVar, name: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Metric</label>
+                          <input
+                            type="text"
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-sm px-3 py-2 text-sm text-slate-700 dark:text-slate-200"
+                            placeholder="e.g. SCM"
+                            value={newVar.metric}
+                            onChange={(e) => setNewVar({...newVar, metric: e.target.value.toUpperCase()})}
+                          />
+                        </div>
+                      </div>
+                      <div className="mb-4">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Description</label>
+                        <textarea
+                          className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-sm px-3 py-2 text-sm text-slate-700 dark:text-slate-200 resize-none h-16"
+                          placeholder="What does this variable measure?"
+                          value={newVar.description}
+                          onChange={(e) => setNewVar({...newVar, description: e.target.value})}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Layer</label>
+                          <input
+                            type="number"
+                            min="0"
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-sm px-3 py-2 text-sm text-slate-700 dark:text-slate-200"
+                            value={newVar.layer}
+                            onChange={(e) => setNewVar({...newVar, layer: parseInt(e.target.value) || 0})}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Weight</label>
+                          <input
+                            type="number"
+                            step="0.05"
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-sm px-3 py-2 text-sm text-slate-700 dark:text-slate-200"
+                            value={newVar.weight}
+                            onChange={(e) => setNewVar({...newVar, weight: parseFloat(e.target.value) || 0})}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Default Score</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            max="1.0"
+                            min="0.0"
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-sm px-3 py-2 text-sm text-slate-700 dark:text-slate-200"
+                            value={newVar.defaultValue}
+                            onChange={(e) => setNewVar({...newVar, defaultValue: parseFloat(e.target.value) || 0})}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-3">
+                        <button
+                          onClick={() => setShowAddVar(false)}
+                          className="px-4 py-2 text-slate-500 text-xs font-bold uppercase tracking-widest hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!newVar.symbol || !newVar.name) return alert("Symbol and Name are required");
+                            const newConf = [...(data?.variableConfigs || []), newVar];
+                            saveData({ variableConfigs: newConf });
+                            setShowAddVar(false);
+                            setNewVar({
+                              symbol: "", name: "", description: "", metric: "SCM", layer: 0, weight: 0.25, defaultValue: 0.5, isActive: true
+                            });
+                          }}
+                          disabled={saving}
+                          className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-sm text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
+                        >
+                          {saving ? "Saving..." : "Save Variable"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-sm shadow-sm overflow-hidden">
                     <table className="w-full text-left text-sm">
                       <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs border-b border-slate-200 dark:border-slate-700">
                         <tr>
+                          <th className="px-6 py-4 w-12 text-center text-slate-400">#</th>
                           <th className="px-6 py-4">Symbol</th>
                           <th className="px-6 py-4">Name</th>
                           <th className="px-6 py-4 text-center">Metric</th>
@@ -1041,9 +1189,17 @@ export default function AdminPanel({ onClose }: Props) {
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-slate-700 dark:text-slate-300">
                         {data.variableConfigs
-                          ?.sort((a: any, b: any) => (a.layer || 0) - (b.layer || 0))
-                          .map((v: any) => (
-                            <tr key={v._id} className={!v.isActive ? "opacity-50" : ""}>
+                          ?.filter((v: any) => {
+                            if (!varSearch) return true;
+                            const term = varSearch.toLowerCase();
+                            return (v.name?.toLowerCase().includes(term) || v.symbol?.toLowerCase().includes(term) || v.metric?.toLowerCase().includes(term));
+                          })
+                          .sort((a: any, b: any) => (a.layer || 0) - (b.layer || 0))
+                          .map((v: any, index: number) => (
+                            <tr key={v._id || v.symbol} className={!v.isActive ? "opacity-50" : ""}>
+                              <td className="px-6 py-4 font-mono text-xs text-slate-400 text-center">
+                                {index + 1}
+                              </td>
                               <td className="px-6 py-4 font-bold font-mono text-indigo-600 dark:text-indigo-400">
                                 {v.symbol}
                               </td>
