@@ -1,7 +1,7 @@
 // Vercel Serverless Function — Full Router (mirrors server.ts)
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
-import { connectDB, User, Plan, PromoCode, PendingRequest, Subscriber, AdminConfig, AnalysisLog } from './db.js';
+import { connectDB, User, Plan, PromoCode, PendingRequest, Subscriber, AdminConfig, AnalysisLog, VariableConfig } from './db.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { GoogleGenAI } from '@google/genai';
@@ -106,12 +106,26 @@ function safeRepairJSON(text: string): string {
   return result.join('');
 }
 
-async function parseProblem(apiKey: string, problem: string, retryCount: number = 0) {
+async function parseProblem(apiKey: string, problem: string, variables: any[] = [], retryCount: number = 0) {
   const ai = new GoogleGenAI({ apiKey });
+
+  const variableDefaults = variables.reduce((acc: any, v: any) => {
+    acc[v.symbol] = v.defaultValue;
+    return acc;
+  }, {});
+
+  const variableInstructions = variables
+    .filter(v => v.description)
+    .map(v => `- ${v.symbol}: ${v.description}`)
+    .join('\n');
+
+  if (Object.keys(variableDefaults).length === 0) {
+    variableDefaults['HPA'] = 0.5;
+  }
 
   let call1Result: any;
   try {
-    call1Result = await callGeminiAPI(ai, `Act as a global strategic intelligence analyst. Analyze this coordination problem and extract entities, structure, and map to CIPF v4.0 variables.
+    const prompt = `Act as a global strategic intelligence analyst. Analyze this coordination problem and extract entities, structure, and map to CIPF v4.0 variables.
 
 Problem: ${problem}
 
@@ -126,30 +140,19 @@ Return a JSON object with ONLY these keys:
     "escalationTimeline": [{"date": "YYYY-MM", "event": "description"}]
   },
   "variableExplanations": [
-    {"variable": "HPA", "value": 0.7, "explanation": "Why this value was assigned"}
+    {"variable": "${variables.length > 0 ? variables[0].symbol : 'VAR'}", "value": 0.7, "explanation": "Why this value was assigned"}
   ],
-  "mappedVariables": {
-    "HPA": 0.5, "EII": 0.5, "CLS": 0.5, "GPI": 0.5, "SI": 0.5,
-    "WMC": 0.5, "PS": 0.5, "EF": 0.5, "AC": 0.5,
-    "ERA": 0.5, "ERE": 0.5, "ST": 0.5, "IC": 0.5,
-    "TC": 0.5, "PC": 0.5, "SCFR": 0.5, "EVC": 0.5, "FER": 0.5,
-    "NC": 0.5, "TI": 0.5, "RNA": 0.5, "RC": 0.5,
-    "CCR": 0.5, "SNR": 0.5, "LCA": 0.5, "VM": 0.5,
-    "SC": 0.5, "OM": 0.5, "EPC": 0.5, "VT": 0.5,
-    "RCC": 0.5, "POC": 0.5, "LTO": 0.5, "CPT": 0.5,
-    "PPPA": 0.5, "SQ": 0.5, "AS": 0.5, "DAB": 0.5,
-    "Flexibility": 0.5, "tau": 1, "tau_max": 10, "f": 0.5,
-    "sigma": 1, "sigma_max": 10, "rho": 0.5,
-    "VW": 0.5, "Complexity": 0.5, "baseline": 1.0, "alpha": 0.5, "load": 1.0, "lambda": 0.5,
-    "Deltas": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
-    "alpha_IC": 0.5, "GroupBonus": 0.5, "alpha_PD": 0.5, "ELF": 0.5,
-    "ResourceAvailability": 0.5, "EcologicalCapacity": 0.5, "ClimateBudget": 0.5
-  }
+  "mappedVariables": ${JSON.stringify(variableDefaults, null, 2).replace(/\n/g, '\n  ')}
 }
 
-Values 0-1 (except tau_max, sigma_max, baseline, load). Provide reasonable estimates. Keep string values concise.`);
+Variable Definitions to guide scoring:
+${variableInstructions}
+
+Values 0-1 (except tau_max, sigma_max, baseline, load). Provide reasonable estimates. Keep string values concise.`;
+
+    call1Result = await callGeminiAPI(ai, prompt);
   } catch (err: any) {
-    if (retryCount < 1) return parseProblem(apiKey, problem, retryCount + 1);
+    if (retryCount < 1) return parseProblem(apiKey, problem, variables, retryCount + 1);
     throw err;
   }
 
@@ -203,24 +206,87 @@ Generate 4 scenarios for part4, 5-8 actors for part2, 6-8 sectors for part5, 5-1
 }
 
 // ===== CIPF COMPUTE =====
-function computeCIPF(inputs: any) {
-  const { HPA, EII, CLS, GPI, SI, WMC, PS, EF, AC, ERA, ERE, ST, IC,
-    TC, PC, SCFR, EVC, FER, NC, TI, RNA, RC,
-    Flexibility, tau, tau_max, f, sigma, sigma_max, rho, VW, Complexity, Deltas } = inputs;
+function computeCIPF(inputs: any, variables: any[] = []) {
+  const metrics: Record<string, number> = {};
+  ['SCM', 'CCI', 'ERC', 'RQ', 'SRC', 'IFA', 'DRC', 'IAQ', 'TPM'].forEach(m => metrics[m] = 0);
 
-  const SCM = (HPA + EII + CLS + GPI + SI) / 5 * (1 + Flexibility) * (tau / tau_max);
-  const PCC = (WMC + PS + EF + AC) / 4 * (1 - f) + f * (ERA + ERE + ST + IC) / 4;
-  const ICS = ((TC + PC + SCFR + EVC + FER) / 5 + (NC + TI + RNA + RC) / 4) / 2
-    * (sigma / sigma_max) * (1 + rho * VW);
-  const Psi = (SCM + PCC + ICS) / 3 * (1 / (1 + Complexity));
-  const DeltaSum = Deltas.reduce((sum: number, d: number) => sum + d, 0);
-  const Psi_final = Psi - DeltaSum;
+  if (variables && variables.length > 0) {
+    variables.forEach(v => {
+      if (v.metric && metrics[v.metric] !== undefined) {
+        metrics[v.metric] += (inputs[v.symbol] || 0) * (v.weight || 0);
+      }
+    });
+  } else {
+    metrics.SCM = 0.25*(inputs.HPA||0) + 0.25*(inputs.EII||0) + 0.20*(inputs.CLS||0) + 0.15*(inputs.GPI||0) + 0.15*(inputs.SI||0);
+    metrics.CCI = 0.30*(inputs.WMC||0) + 0.25*(inputs.PS||0) + 0.25*(inputs.EF||0) + 0.20*(inputs.AC||0);
+    metrics.ERC = 0.25*(inputs.ERA||0) + 0.30*(inputs.ERE||0) + 0.25*(inputs.ST||0) + 0.20*(inputs.IC||0);
+    metrics.RQ = 0.25*(inputs.TC||0) + 0.20*(inputs.PC||0) + 0.20*(inputs.SCFR||0) + 0.20*(inputs.EVC||0) + 0.15*(inputs.FER||0);
+    metrics.SRC = 0.30*(inputs.NC||0) + 0.30*(inputs.TI||0) + 0.20*(inputs.RNA||0) + 0.20*(inputs.RC||0);
+    metrics.IFA = 0.25*(inputs.CCR||0) + 0.25*(inputs.SNR||0) + 0.30*(inputs.LCA||0) + 0.20*(inputs.VM||0);
+    metrics.DRC = 0.35*(inputs.SC||0) + 0.25*(inputs.OM||0) + 0.25*(inputs.EPC||0) + 0.15*(inputs.VT||0);
+    metrics.IAQ = 0.30*(inputs.RCC||0) + 0.30*(inputs.POC||0) + 0.25*(inputs.LTO||0) + 0.15*(inputs.CPT||0);
+    metrics.TPM = 0.35*(inputs.PPPA||0) + 0.25*(inputs.SQ||0) + 0.20*(inputs.AS||0) + 0.20*(inputs.DAB||0);
+  }
 
-  const dominantDelta = Deltas.indexOf(Math.max(...Deltas));
-  const layers = { SCM, PCC, ICS, Psi };
-  const binding = Object.entries(layers).reduce((a: any, b: any) => a[1] < b[1] ? a : b);
+  const { SCM, CCI, ERC, RQ, SRC, IFA, DRC, IAQ, TPM } = metrics;
+  
+  const Flexibility = inputs.Flexibility ?? 0.5;
+  const tau = inputs.tau ?? 1;
+  const tau_max = inputs.tau_max ?? 10;
+  const f = inputs.f ?? 0.5;
+  const sigma = inputs.sigma ?? 1;
+  const sigma_max = inputs.sigma_max ?? 10;
+  const rho = inputs.rho ?? 0.5;
+  const VW = inputs.VW ?? 0.5;
+  const Complexity = inputs.Complexity ?? 0.5;
+  const baseline = inputs.baseline ?? 1;
+  const alpha = inputs.alpha ?? 0.1;
+  const load = inputs.load ?? 2;
+  const lambda = inputs.lambda ?? 0.1;
+  const Deltas = inputs.Deltas || [0,0,0,0,0,0];
 
-  return { SCM, PCC, ICS, Psi, Psi_final, DeltaSum, dominantDelta: `Delta_${dominantDelta + 1}`, bindingConstraint: binding[0] };
+  const PCC = Math.pow(CCI * ERC * RQ * SRC, 0.25);
+  const PCC_weighted = PCC;
+
+  const ICS = Math.pow(IFA * DRC * IAQ * TPM, 0.25);
+
+  const Omega = 0.40*ICS + 0.30*PCC_weighted + 0.30*Flexibility;
+  const Phi = 0.30*(1 - tau/tau_max) + 0.25*f + 0.20*(1 - sigma/sigma_max) + 0.25*rho;
+  const Theta = 0.50*VW + 0.30*(1 - DRC) + 0.20*Complexity;
+  const Sigma = baseline * Math.exp(alpha * load);
+  
+  const deltaProduct = Deltas.reduce((acc: number, val: number) => acc * (1 - val), 1);
+  const Psi = Math.pow(Omega * Phi * (1 - Theta), 1/3) * Math.pow(Sigma, -lambda) * deltaProduct;
+
+  const Psi_structural_modifier = 1 - 0.15 * SCM;
+  const ELF = inputs.ELF ?? 0.5;
+  const Psi_cultural_modifier = ELF > 0.65 ? (1 - 0.15 * ELF) : 1;
+
+  const Psi_structural = Psi * Psi_structural_modifier;
+  const Psi_cultural = Psi * Psi_cultural_modifier;
+
+  const alpha_IC = inputs.alpha_IC ?? 0.1;
+  const GroupBonus = inputs.GroupBonus ?? 0.1;
+  const RQ_adj = RQ * (1 + alpha_IC * GroupBonus);
+  const alpha_PD = inputs.alpha_PD ?? 0.5;
+  const rho_optimal = 0.70 - 0.30 * alpha_PD;
+
+  const PCE = Math.min(inputs.ResourceAvailability??1, inputs.EcologicalCapacity??1, inputs.ClimateBudget??1);
+  const Psi_final = Math.min(Psi * Psi_structural_modifier * Psi_cultural_modifier, PCE);
+
+  let dominantDeltaIndex = 0;
+  let maxDelta = -1;
+  Deltas.forEach((d: number, i: number) => {
+    if (d > maxDelta) { maxDelta = d; dominantDeltaIndex = i; }
+  });
+
+  return {
+    SCM, CCI, ERC, RQ, SRC, PCC, IFA, DRC, IAQ, TPM, ICS,
+    Omega, Phi, Theta, Sigma, Psi, Psi_structural, Psi_cultural, PCE, Psi_final,
+    RQ_adj, rho_optimal, DeltaSum: 0,
+    dominantDelta: `Delta_${dominantDeltaIndex + 1} (${maxDelta})`,
+    bindingConstraint: PCE < (Psi * Psi_structural_modifier * Psi_cultural_modifier) ? 'Physical Constraint Envelope (PCE)' : 'Structural/Cultural Capacity'
+  };
 }
 
 // ===== AUTH MIDDLEWARE =====
@@ -566,20 +632,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // GET /api/admin/data
     if (path === '/api/admin/data' && req.method === 'GET') {
       if (!requireAdmin()) return;
-      const [promoCodes, subscribers, pendingRequests, plans, analysisLogs] = await Promise.all([
+      const [promoCodes, subscribers, pendingRequests, plans, analysisLogs, variableConfigs] = await Promise.all([
         PromoCode.find().lean(), User.find({ plan: { $ne: null } }).select('-passwordHash').lean(),
-        PendingRequest.find({ status: 'pending' }).lean(), Plan.find().lean(), AnalysisLog.find().sort({ timestamp: -1 }).limit(200).lean()
+        PendingRequest.find({ status: 'pending' }).lean(), Plan.find().lean(), AnalysisLog.find().sort({ timestamp: -1 }).limit(200).lean(),
+        VariableConfig.find().lean()
       ]);
-      return res.json({ promoCodes, subscribers, pendingRequests, plans, analysisLogs });
+      return res.json({ promoCodes, subscribers, pendingRequests, plans, analysisLogs, variableConfigs });
     }
 
     // POST /api/admin/data
     if (path === '/api/admin/data' && req.method === 'POST') {
       if (!requireAdmin()) return;
-      const { promoCodes, subscribers, pendingRequests, plans } = req.body;
+      const { promoCodes, subscribers, pendingRequests, plans, variableConfigs } = req.body;
       if (promoCodes) for (const pc of promoCodes) { const { _id, ...data } = pc; if (_id) await PromoCode.findByIdAndUpdate(_id, data, { upsert: true }); else await PromoCode.create(data); }
       if (subscribers) for (const sub of subscribers) { const { _id, ...data } = sub; if (_id) await Subscriber.findByIdAndUpdate(_id, data, { upsert: true }); else await Subscriber.create(data); }
       if (pendingRequests) { await PendingRequest.deleteMany({ status: 'pending' }); const pending = pendingRequests.filter((r: any) => r.status === 'pending'); if (pending.length) await PendingRequest.insertMany(pending); }
+      if (variableConfigs) for (const vc of variableConfigs) { const { _id, ...data } = vc; if (_id) await VariableConfig.findByIdAndUpdate(_id, data, { upsert: true }); else await VariableConfig.create(data); }
       return res.json({ success: true });
     }
 
@@ -715,7 +783,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'API Key and Problem are required.' });
       }
 
-      const parsedData = await parseProblem(apiKey, problem);
+      const { VariableConfig } = await import('./db.js');
+      const variables = await VariableConfig.find({ isActive: true }).lean();
+
+      const parsedData = await parseProblem(apiKey, problem, variables);
       const evidence = {
         historicalCases: [
           { id: 'HC-001', description: 'Similar coordination failure in 2018', relevance: 0.85 },
@@ -724,28 +795,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         structuredData: { averageHistoricalPsi: 0.42, commonFailureModes: ['Trust Fragmentation', 'Resource Depletion'] }
       };
 
-      const defaultVars: any = {
-        HPA: 0.5, EII: 0.5, CLS: 0.5, GPI: 0.5, SI: 0.5,
-        WMC: 0.5, PS: 0.5, EF: 0.5, AC: 0.5,
-        ERA: 0.5, ERE: 0.5, ST: 0.5, IC: 0.5,
-        TC: 0.5, PC: 0.5, SCFR: 0.5, EVC: 0.5, FER: 0.5,
-        NC: 0.5, TI: 0.5, RNA: 0.5, RC: 0.5,
-        CCR: 0.5, SNR: 0.5, LCA: 0.5, VM: 0.5,
-        SC: 0.5, OM: 0.5, EPC: 0.5, VT: 0.5,
-        RCC: 0.5, POC: 0.5, LTO: 0.5, CPT: 0.5,
-        PPPA: 0.5, SQ: 0.5, AS: 0.5, DAB: 0.5,
-        Flexibility: 0.5, tau: 1, tau_max: 10, f: 0.5, sigma: 1, sigma_max: 10, rho: 0.5,
-        VW: 0.5, Complexity: 0.5, baseline: 1, alpha: 0.1, load: 2, lambda: 0.1,
+      const defaultVars: any = variables.reduce((acc: any, v: any) => {
+        acc[v.symbol] = v.defaultValue;
+        return acc;
+      }, {
         Deltas: [0.1, 0.05, 0.02, 0.01, 0.01, 0.01],
-        alpha_IC: 0.1, GroupBonus: 0.1, alpha_PD: 0.5, ELF: 0.5,
-        ResourceAvailability: 1, EcologicalCapacity: 1, ClimateBudget: 1,
         weights: [1]
-      };
+      });
 
       const inputs = { ...defaultVars, ...(parsedData.mappedVariables || {}) };
       if (!Array.isArray(inputs.Deltas) || inputs.Deltas.length !== 6) inputs.Deltas = defaultVars.Deltas;
 
-      const cipfResults = computeCIPF(inputs);
+      const cipfResults = computeCIPF(inputs, variables);
       const avgRelevance = evidence.historicalCases.reduce((acc, c) => acc + c.relevance, 0) / evidence.historicalCases.length;
       const confidence = { C_final: (0.8 + avgRelevance * 0.1 + 0.75 + avgRelevance * 0.1 + 0.85 + 0.80) / 4 };
       const report = `Geostrate CIPF v4.0 Report\nΨ_final: ${cipfResults.Psi_final.toFixed(4)}\nStatus: ${cipfResults.Psi_final >= 0.387 ? 'VIABLE' : 'CRITICAL RISK'}\nConfidence: ${(confidence.C_final * 100).toFixed(1)}%`;

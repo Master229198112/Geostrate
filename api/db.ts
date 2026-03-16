@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { seedVariables } from './seed_vars.js';
 
 // ===== CONNECTION =====
 let connected = false;
@@ -11,6 +12,12 @@ export async function connectDB() {
   await mongoose.connect(uri);
   connected = true;
   console.log('✅ MongoDB connected');
+  
+  try {
+    await seedVariables();
+  } catch (err) {
+    console.error('Failed to seed variables:', err);
+  }
 }
 
 // ===== SCHEMAS =====
@@ -90,6 +97,17 @@ const analysisLogSchema = new mongoose.Schema({
   timestamp:      { type: String, required: true }  // ISO String
 }, { timestamps: true, strict: false });
 
+const variableConfigSchema = new mongoose.Schema({
+  metric:       { type: String, required: true }, // e.g. SCM, CCI, ERC. Can be 'INDEPENDENT' for standalone vars.
+  layer:        { type: String, required: true }, // Layer 0, Layer 1, etc.
+  symbol:       { type: String, required: true, unique: true }, // e.g. HPA
+  name:         { type: String, required: true }, // Historical Path Allegiance
+  weight:       { type: Number, default: 0 },     // 0.25
+  defaultValue: { type: Number, default: 0.5 },
+  description:  { type: String, default: '' },    // Description to prompt the AI with
+  isActive:     { type: Boolean, default: true }
+}, { timestamps: true, strict: false });
+
 // ===== MODELS =====
 export const PromoCode: mongoose.Model<any>      = mongoose.models.PromoCode      || mongoose.model('PromoCode', promoCodeSchema);
 export const Subscriber: mongoose.Model<any>     = mongoose.models.Subscriber     || mongoose.model('Subscriber', subscriberSchema);
@@ -98,3 +116,4 @@ export const Plan: mongoose.Model<any>           = mongoose.models.Plan         
 export const AdminConfig: mongoose.Model<any>    = mongoose.models.AdminConfig    || mongoose.model('AdminConfig', adminConfigSchema);
 export const User: mongoose.Model<any>           = mongoose.models.User           || mongoose.model('User', userSchema);
 export const AnalysisLog: mongoose.Model<any>    = mongoose.models.AnalysisLog    || mongoose.model('AnalysisLog', analysisLogSchema);
+export const VariableConfig: mongoose.Model<any> = mongoose.models.VariableConfig || mongoose.model('VariableConfig', variableConfigSchema);

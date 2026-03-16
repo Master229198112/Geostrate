@@ -90,17 +90,31 @@ async function callGemini(ai: any, prompt: string): Promise<any> {
 export async function parseProblem(
   apiKey: string,
   problem: string,
+  variables: any[] = [],
   retryCount: number = 0,
 ): Promise<any> {
   const ai = new GoogleGenAI({ apiKey });
+
+  const variableDefaults = variables.reduce((acc, v) => {
+    acc[v.symbol] = v.defaultValue;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const variableInstructions = variables
+    .filter(v => v.description)
+    .map(v => `- ${v.symbol}: ${v.description}`)
+    .join('\n');
+
+  // fallback if empty
+  if (Object.keys(variableDefaults).length === 0) {
+    variableDefaults['HPA'] = 0.5;
+  }
 
   // ---- CALL 1: Structure, Variables & Executive Summary ----
   console.log("[Gemini] Call 1: Structure & Variables...");
   let call1Result: any;
   try {
-    call1Result = await callGemini(
-      ai,
-      `Act as a global strategic intelligence analyst. Analyze this coordination problem and extract entities, structure, and map to CIPF v4.0 variables.
+    const prompt = `Act as a global strategic intelligence analyst. Analyze this coordination problem and extract entities, structure, and map to CIPF v4.0 variables.
 
 Problem: ${problem}
 
@@ -115,33 +129,21 @@ Return a JSON object with ONLY these keys:
     "escalationTimeline": [{"date": "YYYY-MM", "event": "description"}]
   },
   "variableExplanations": [
-    {"variable": "HPA", "value": 0.7, "explanation": "Why this value was assigned"}
+    {"variable": "${variables.length > 0 ? variables[0].symbol : 'VAR'}", "value": 0.7, "explanation": "Why this value was assigned"}
   ],
-  "mappedVariables": {
-    "HPA": 0.5, "EII": 0.5, "CLS": 0.5, "GPI": 0.5, "SI": 0.5,
-    "WMC": 0.5, "PS": 0.5, "EF": 0.5, "AC": 0.5,
-    "ERA": 0.5, "ERE": 0.5, "ST": 0.5, "IC": 0.5,
-    "TC": 0.5, "PC": 0.5, "SCFR": 0.5, "EVC": 0.5, "FER": 0.5,
-    "NC": 0.5, "TI": 0.5, "RNA": 0.5, "RC": 0.5,
-    "CCR": 0.5, "SNR": 0.5, "LCA": 0.5, "VM": 0.5,
-    "SC": 0.5, "OM": 0.5, "EPC": 0.5, "VT": 0.5,
-    "RCC": 0.5, "POC": 0.5, "LTO": 0.5, "CPT": 0.5,
-    "PPPA": 0.5, "SQ": 0.5, "AS": 0.5, "DAB": 0.5,
-    "Flexibility": 0.5, "tau": 1, "tau_max": 10, "f": 0.5,
-    "sigma": 1, "sigma_max": 10, "rho": 0.5,
-    "VW": 0.5, "Complexity": 0.5, "baseline": 1.0, "alpha": 0.5, "load": 1.0, "lambda": 0.5,
-    "Deltas": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
-    "alpha_IC": 0.5, "GroupBonus": 0.5, "alpha_PD": 0.5, "ELF": 0.5,
-    "ResourceAvailability": 0.5, "EcologicalCapacity": 0.5, "ClimateBudget": 0.5
-  }
+  "mappedVariables": ${JSON.stringify(variableDefaults, null, 2).replace(/\n/g, '\n  ')}
 }
 
-Values 0-1 (except tau_max, sigma_max, baseline, load). Provide reasonable estimates. Keep string values concise.`,
-    );
+Variable Definitions to guide scoring:
+${variableInstructions}
+
+Values 0-1 (except tau_max, sigma_max, baseline, load). Provide reasonable estimates. Keep string values concise.`;
+
+    call1Result = await callGemini(ai, prompt);
   } catch (err: any) {
     if (retryCount < 1) {
       console.log("[Gemini] Call 1 failed, retrying...");
-      return parseProblem(apiKey, problem, retryCount + 1);
+      return parseProblem(apiKey, problem, variables, retryCount + 1);
     }
     throw err;
   }

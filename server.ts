@@ -174,31 +174,25 @@ async function startServer() {
         return res.status(400).json({ error: 'API Key is required. Please enter a key or set one in your profile.' });
       }
 
+      // Fetch dynamic variables
+      const { VariableConfig } = await import('./api/db.js');
+      const variables = await VariableConfig.find({ isActive: true }).lean();
+
       // 1. Gemini parses entities and structure
-      const parsedData = await parseProblem(apiKey, problem);
+      const parsedData = await parseProblem(apiKey, problem, variables);
       
       // 2. Evidence retrieval
       const evidence = retrieveEvidence(problem, parsedData.entities);
 
       // 3. Compute CIPF deterministically
-      // Fill missing variables with defaults
-      const defaultVars = {
-        HPA: 0.5, EII: 0.5, CLS: 0.5, GPI: 0.5, SI: 0.5,
-        WMC: 0.5, PS: 0.5, EF: 0.5, AC: 0.5,
-        ERA: 0.5, ERE: 0.5, ST: 0.5, IC: 0.5,
-        TC: 0.5, PC: 0.5, SCFR: 0.5, EVC: 0.5, FER: 0.5,
-        NC: 0.5, TI: 0.5, RNA: 0.5, RC: 0.5,
-        CCR: 0.5, SNR: 0.5, LCA: 0.5, VM: 0.5,
-        SC: 0.5, OM: 0.5, EPC: 0.5, VT: 0.5,
-        RCC: 0.5, POC: 0.5, LTO: 0.5, CPT: 0.5,
-        PPPA: 0.5, SQ: 0.5, AS: 0.5, DAB: 0.5,
-        Flexibility: 0.5, tau: 1, tau_max: 10, f: 0.5, sigma: 1, sigma_max: 10, rho: 0.5,
-        VW: 0.5, Complexity: 0.5, baseline: 1, alpha: 0.1, load: 2, lambda: 0.1,
+      // Fill missing variables with dynamic defaults
+      const defaultVars = variables.reduce((acc: any, v: any) => {
+        acc[v.symbol] = v.defaultValue;
+        return acc;
+      }, {
         Deltas: [0.1, 0.05, 0.02, 0.01, 0.01, 0.01],
-        alpha_IC: 0.1, GroupBonus: 0.1, alpha_PD: 0.5, ELF: 0.5,
-        ResourceAvailability: 1, EcologicalCapacity: 1, ClimateBudget: 1,
         weights: [1]
-      };
+      });
 
       const inputs = { ...defaultVars, ...(parsedData.mappedVariables || {}) };
       
@@ -277,7 +271,7 @@ async function startServer() {
   });
 
   // ===== SUBSCRIPTION & PROMO API (MongoDB) =====
-  const { connectDB, PromoCode, Subscriber, PendingRequest, Plan, AdminConfig, User, AnalysisLog } = await import('./api/db.js');
+  const { connectDB, PromoCode, Subscriber, PendingRequest, Plan, AdminConfig, User, AnalysisLog, VariableConfig } = await import('./api/db.js');
   const bcrypt = (await import('bcryptjs')).default;
   const jwt = (await import('jsonwebtoken')).default;
   const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
@@ -788,22 +782,24 @@ async function startServer() {
   // Admin Data Read (all collections)
   app.get('/api/admin/data', requireAdmin, async (req: any, res) => {
     try {
-      const [promoCodes, subscribers, pendingRequests, plans] = await Promise.all([
+      const [promoCodes, subscribers, pendingRequests, plans, analysisLogs, variableConfigs] = await Promise.all([
         PromoCode.find().lean(),
         User.find({ plan: { $ne: null } }).select('-passwordHash').lean(),
         PendingRequest.find({ status: 'pending' }).lean(),
         Plan.find().lean(),
+        AnalysisLog.find().sort({ timestamp: -1 }).limit(200).lean(),
+        VariableConfig.find().lean()
       ]);
-      res.json({ promoCodes, subscribers, pendingRequests, plans });
+      res.json({ promoCodes, subscribers, pendingRequests, plans, analysisLogs, variableConfigs });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  // Admin Data Write (targeted collection updates)
+  // Admin Data Write (bulk update)
   app.post('/api/admin/data', requireAdmin, async (req: any, res) => {
     try {
-      const { promoCodes, subscribers, pendingRequests, plans } = req.body;
+      const { promoCodes, subscribers, pendingRequests, plans, variableConfigs } = req.body;
 
       if (promoCodes) {
         for (const pc of promoCodes) {
@@ -812,6 +808,7 @@ async function startServer() {
           else await PromoCode.create(data);
         }
       }
+
       if (subscribers) {
         for (const sub of subscribers) {
           const { _id, ...data } = sub;
@@ -819,11 +816,19 @@ async function startServer() {
           else await Subscriber.create(data);
         }
       }
+
       if (pendingRequests) {
-        // Replace entire pending list (admin may have approved/rejected)
         await PendingRequest.deleteMany({ status: 'pending' });
         const pending = pendingRequests.filter((r: any) => r.status === 'pending');
-        if (pending.length) await PendingRequest.insertMany(pending);
+        if (pending.length > 0) await PendingRequest.insertMany(pending);
+      }
+
+      if (variableConfigs) {
+        for (const vc of variableConfigs) {
+          const { _id, ...data } = vc;
+          if (_id) await VariableConfig.findByIdAndUpdate(_id, data, { upsert: true });
+          else await VariableConfig.create(data);
+        }
       }
 
       res.json({ success: true });

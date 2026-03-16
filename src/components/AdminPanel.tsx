@@ -11,6 +11,7 @@ import {
   Lock,
   Crown,
   BarChart3,
+  Sliders,
 } from "lucide-react";
 
 interface Props {
@@ -23,6 +24,7 @@ interface AdminData {
   pendingRequests: any[];
   plans: any[];
   analysisLogs: any[];
+  variableConfigs: any[];
 }
 
 export default function AdminPanel({ onClose }: Props) {
@@ -33,7 +35,7 @@ export default function AdminPanel({ onClose }: Props) {
   const [error, setError] = useState("");
   const [data, setData] = useState<AdminData | null>(null);
   const [tab, setTab] = useState<
-    "pending" | "subs" | "promos" | "plans" | "logs" | "settings"
+    "pending" | "subs" | "promos" | "plans" | "logs" | "vars" | "settings"
   >("pending");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -351,6 +353,12 @@ export default function AdminPanel({ onClose }: Props) {
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-sm text-sm font-semibold tracking-wide uppercase transition-colors ${tab === "logs" ? "bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
             >
               <BarChart3 className="w-4 h-4" /> Analytics & Logs
+            </button>
+            <button
+              onClick={() => setTab("vars")}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-sm text-sm font-semibold tracking-wide uppercase transition-colors ${tab === "vars" ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
+            >
+              <Sliders className="w-4 h-4" /> Variables & Formulas
             </button>
             <div className="border-t border-slate-200 dark:border-slate-700 my-3" />
             <button
@@ -1008,6 +1016,108 @@ export default function AdminPanel({ onClose }: Props) {
                       )}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {/* TAB: VARIABLES & FORMULAS */}
+              {tab === "vars" && (
+                <div>
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 uppercase tracking-widest flex items-center gap-2">
+                      <Sliders className="w-5 h-5 text-indigo-500" /> Variables & Formulas
+                    </h2>
+                  </div>
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-sm shadow-sm overflow-hidden">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs border-b border-slate-200 dark:border-slate-700">
+                        <tr>
+                          <th className="px-6 py-4">Symbol</th>
+                          <th className="px-6 py-4">Name</th>
+                          <th className="px-6 py-4 text-center">Metric</th>
+                          <th className="px-6 py-4 text-center">Weight</th>
+                          <th className="px-6 py-4 text-center">Default</th>
+                          <th className="px-6 py-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-slate-700 dark:text-slate-300">
+                        {data.variableConfigs
+                          ?.sort((a: any, b: any) => (a.layer || 0) - (b.layer || 0))
+                          .map((v: any) => (
+                            <tr key={v._id} className={!v.isActive ? "opacity-50" : ""}>
+                              <td className="px-6 py-4 font-bold font-mono text-indigo-600 dark:text-indigo-400">
+                                {v.symbol}
+                              </td>
+                              <td className="px-6 py-4 font-medium">
+                                <div className="text-sm">{v.name}</div>
+                                <div className="text-xs text-slate-500 line-clamp-1">{v.description}</div>
+                              </td>
+                              <td className="px-6 py-4 text-center font-mono text-xs">
+                                {v.metric || "-"} <span className="text-slate-400 ml-1">(L{v.layer})</span>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <input
+                                  type="number"
+                                  step="0.05"
+                                  min="0"
+                                  className="w-20 px-2 py-1 border border-slate-200 dark:border-slate-600 rounded-sm bg-transparent text-center"
+                                  defaultValue={v.weight}
+                                  onBlur={(e) => {
+                                    const val = parseFloat(e.target.value);
+                                    if (val !== v.weight && !isNaN(val)) {
+                                      const newConf = data.variableConfigs.map((c: any) =>
+                                        c._id === v._id ? { ...c, weight: val } : c
+                                      );
+                                      saveData({ variableConfigs: newConf });
+                                    }
+                                  }}
+                                />
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  className="w-20 px-2 py-1 border border-slate-200 dark:border-slate-600 rounded-sm bg-transparent text-center"
+                                  defaultValue={v.defaultValue}
+                                  onBlur={(e) => {
+                                    const val = parseFloat(e.target.value);
+                                    if (val !== v.defaultValue && !isNaN(val)) {
+                                      const newConf = data.variableConfigs.map((c: any) =>
+                                        c._id === v._id ? { ...c, defaultValue: val } : c
+                                      );
+                                      saveData({ variableConfigs: newConf });
+                                    }
+                                  }}
+                                />
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <button
+                                  onClick={() => {
+                                    const newConf = data.variableConfigs.map((c: any) =>
+                                      c._id === v._id ? { ...c, isActive: !c.isActive } : c
+                                    );
+                                    saveData({ variableConfigs: newConf });
+                                  }}
+                                  className={`px-3 py-1.5 rounded-sm font-bold text-xs uppercase tracking-widest transition-colors ${
+                                    v.isActive
+                                      ? "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 hover:bg-rose-200"
+                                      : "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200"
+                                  }`}
+                                >
+                                  {v.isActive ? "Disable" : "Enable"}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        {!data?.variableConfigs?.length && (
+                          <tr>
+                            <td colSpan={6} className="p-8 text-center text-slate-500 italic">
+                              No variables found. Wait for DB seeding.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
