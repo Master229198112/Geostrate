@@ -38,6 +38,7 @@ import { addHistoryEntry } from "./lib/history";
 import AnalysisHistory from "./components/AnalysisHistory";
 import ActorMap from "./components/ActorMap";
 import LiveNewsPanel from "./components/LiveNewsPanel";
+import AboutPage from "./components/AboutPage";
 import type { AnalysisResponse } from "./types";
 
 // Lazy load the heavy components
@@ -67,8 +68,8 @@ function AppContent() {
   const [results, setResults] = useState<AnalysisResponse | null>(null);
   const [error, setError] = useState("");
 
-  // View state: input → progress → results
-  const [viewState, setViewState] = useState<"input" | "progress" | "results">(
+  // View state: input → progress → results → about
+  const [viewState, setViewState] = useState<"input" | "progress" | "results" | "about">(
     "input",
   );
 
@@ -296,11 +297,22 @@ function AppContent() {
       <header className="border-b border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md sticky top-0 z-10 shadow-sm">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100 tracking-tight uppercase">
-              Geostrate
+            <h1 
+              className="text-lg font-semibold text-slate-800 dark:text-slate-100 tracking-tight cursor-pointer"
+              onClick={() => { setViewState("input"); setResults(null); }}
+            >
+              GeostrateQ
             </h1>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
+            <nav className="hidden sm:flex items-center gap-4">
+              <button 
+                onClick={() => setViewState("about")}
+                className={`text-sm font-bold uppercase tracking-widest transition-colors ${viewState === "about" ? "text-blue-600 dark:text-blue-400" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"}`}
+              >
+                About
+              </button>
+            </nav>
             <button
               onClick={() => setDarkMode(!darkMode)}
               className="p-2 rounded-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -378,107 +390,15 @@ function AppContent() {
         </div>
       </header>
 
+      {/* ═══════════ ABOUT VIEW ═══════════ */}
+      {viewState === "about" && <AboutPage />}
+
       {/* ═══════════ INPUT VIEW ═══════════ */}
       {viewState === "input" && (
         <main className="flex-grow px-4 sm:px-6 lg:px-8 py-12 lg:py-16 max-w-[1400px] mx-auto w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-start">
-            {/* Left Column: About GeostrateQ */}
-            <div className="space-y-8 lg:sticky lg:top-24">
-              <div>
-                <h1 className="text-3xl sm:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight mb-4">
-                  GeostrateQ{" "}
-                  <span className="text-blue-600 dark:text-blue-500">:</span>{" "}
-                  Strategic Intelligence for Complex Decisions
-                </h1>
-                <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed mb-4">
-                  GeostrateQ is an advanced predictive intelligence platform
-                  designed to analyze complex environments where multiple
-                  actors, institutions, and incentives interact. By combining
-                  behavioral analytics, institutional dynamics, network
-                  relationships, and structural constraints, the platform
-                  converts fragmented signals into structured strategic
-                  insights.
-                </p>
-                <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed">
-                  GeostrateQ helps decision-makers understand who holds
-                  influence, how alliances evolve, where risks are emerging, and
-                  which scenarios are most likely to unfold. Through actor power
-                  mapping, scenario modeling, and impact analysis, the platform
-                  enables leaders to navigate uncertainty with greater clarity
-                  and foresight.
-                </p>
-              </div>
-
-              <div>
-                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-3 tracking-tight">
-                  Who benefits from GeostrateQ
-                </h2>
-                <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base mb-4">
-                  GeostrateQ is designed for organizations operating in complex
-                  and high-stakes environments, including:
-                </p>
-                <ul className="space-y-3">
-                  {[
-                    "Governments and public institutions seeking better geopolitical, policy, and national security insights",
-                    "Investors and financial institutions assessing market risks and global economic shifts",
-                    "Corporations and strategy teams navigating regulatory change, competition, and global expansion",
-                    "Think tanks and research institutions analyzing political, economic, and technological systems",
-                    "International organizations and policy advisors involved in negotiations, crisis response, and global governance",
-                  ].map((item, i) => (
-                    <li
-                      key={i}
-                      className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400 leading-relaxed"
-                    >
-                      <Check className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-3 tracking-tight">
-                  Key application areas
-                </h2>
-                <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base mb-4">
-                  GeostrateQ supports strategic analysis across a wide range of
-                  domains, including:
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {[
-                    "Geopolitical risk and election analysis",
-                    "Financial market and investment risk assessment",
-                    "Corporate strategy and regulatory forecasting",
-                    "Mergers and acquisitions coordination analysis",
-                    "Global negotiations and policy dynamics",
-                    "Crisis management and multi-agency coordination",
-                    "Technology governance and emerging policy environments",
-                  ].map((item, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-sm p-3 shadow-sm"
-                    >
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                      <span className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium">
-                        {item}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 sm:p-5 rounded-r-sm">
-                <p className="text-sm sm:text-base text-blue-800 dark:text-blue-200 font-medium leading-relaxed">
-                  By transforming complex data into structured intelligence,
-                  GeostrateQ empowers leaders to anticipate change, understand
-                  power dynamics, and make more informed strategic decisions in
-                  an increasingly uncertain world.
-                </p>
-              </div>
-            </div>
-
-            {/* Right Column: Input Form */}
-            <div className="w-full max-w-lg mx-auto lg:mx-0 lg:ml-auto">
+          <div className="max-w-lg mx-auto w-full">
+            {/* Input Form */}
+            <div className="w-full">
               <div className="text-center mb-8">
                 {/* <Globe className="w-12 h-12 text-blue-500 mx-auto mb-3 opacity-80" /> */}
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
