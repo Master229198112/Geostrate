@@ -136,6 +136,40 @@ export default function LiveNewsPanel({ query }: Props) {
           ))}
         </div>
       )}
+
+      {/* Correction 3: News Sources Strip */}
+      {videos.length > 0 && (
+        <div className="px-4 py-2.5 border-t border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Sources</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            {videos.slice(0, 4).map((video, idx) => {
+              const timeAgo = (() => {
+                const diff = Date.now() - new Date(video.publishedAt).getTime();
+                const hours = Math.floor(diff / 3600000);
+                if (hours < 1) return 'just now';
+                if (hours < 24) return `${hours}h ago`;
+                return `${Math.floor(hours / 24)}d ago`;
+              })();
+              return (
+                <a
+                  key={idx}
+                  href={`https://www.youtube.com/watch?v=${video.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-[10px] text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
+                  <span className="text-[10px]">📡</span>
+                  <span className="font-semibold">{video.channel}</span>
+                  <span className="text-slate-400 dark:text-slate-600">·</span>
+                  <span className="text-slate-400 dark:text-slate-500 font-mono">{timeAgo}</span>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

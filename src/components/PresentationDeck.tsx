@@ -5,6 +5,7 @@ import pptxgen from 'pptxgenjs';
 
 interface PresentationDeckProps {
   results: any;
+  problem?: string;
   onClose: () => void;
 }
 
@@ -39,7 +40,7 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
 }
 
 // ===== PPT GENERATION =====
-async function generatePPT(results: any) {
+async function generatePPT(results: any, problem?: string) {
   const pptx = new pptxgen();
   pptx.layout = 'LAYOUT_16x9';
   pptx.author = 'Geostrate CIPF v4.0';
@@ -69,6 +70,20 @@ async function generatePPT(results: any) {
     slide.addText('Geopolitical Intelligence\n& Strategic Assessment', { x: 0.5, y: 2.2, w: 7, h: 1.8, fontSize: 32, bold: true, color: DARK, fontFace: 'Arial', lineSpacingMultiple: 1.1 });
     slide.addText('High-impact risk analysis and scenario projection for executive decision-making.', { x: 0.5, y: 4.0, w: 7, h: 0.5, fontSize: 14, color: GRAY, fontFace: 'Arial' });
     slide.addText('Strategic Advisory Group — Geostrate', { x: 0.5, y: 4.6, w: 7, h: 0.4, fontSize: 11, color: BLUE, fontFace: 'Arial', bold: true });
+    addFooter(slide, slideNum++);
+  }
+
+  // --- SLIDE: STRATEGIC TARGET INPUT (Correction 5) ---
+  if (problem) {
+    const slide = pptx.addSlide();
+    slide.background = { color: WHITE };
+    addLogo(slide);
+    slide.addText('Strategic Target Input', { x: 0.5, y: 0.3, w: 7, h: 0.5, fontSize: 22, bold: true, color: DARK, fontFace: 'Arial' });
+    slide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.85, w: 1.2, h: 0.04, fill: { color: BLUE } });
+    slide.addText('The following strategic input was provided for analysis:', { x: 0.5, y: 1.1, w: 9, h: 0.3, fontSize: 11, color: GRAY, fontFace: 'Arial' });
+    slide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 1.5, w: 9, h: 3.2, fill: { color: LIGHT_BG }, line: { color: 'CBD5E1', width: 0.5 } });
+    const truncatedProblem = problem.length > 2000 ? problem.slice(0, 2000) + '...' : problem;
+    slide.addText(truncatedProblem, { x: 0.7, y: 1.7, w: 8.6, h: 2.8, fontSize: 11, color: DARK, fontFace: 'Arial', valign: 'top', wrap: true, lineSpacingMultiple: 1.3 });
     addFooter(slide, slideNum++);
   }
 
@@ -178,6 +193,79 @@ async function generatePPT(results: any) {
       slide.addTable(tableRows, { x: 0.5, y: 1.1, w: 9, colW: [2, 1.2, 1, 1, 3.8], border: { pt: 0.5, color: 'E2E8F0' }, fontFace: 'Arial' });
       addFooter(slide, slideNum++);
     });
+
+    // --- ACTOR POWER MATRIX SLIDE ---
+    {
+      const slide = pptx.addSlide();
+      slide.background = { color: WHITE };
+      addLogo(slide);
+      slide.addText('Actor Power Matrix', { x: 0.5, y: 0.3, w: 7, h: 0.5, fontSize: 22, bold: true, color: DARK, fontFace: 'Arial' });
+      slide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.85, w: 9, h: 0.02, fill: { color: 'E2E8F0' } });
+
+      // Left side: Actor data table (mini version)
+      const matrixRows: any[][] = [
+        [
+          { text: 'Actor', options: { bold: true, fontSize: 8, color: GRAY, fill: { color: LIGHT_BG } } },
+          { text: 'Type', options: { bold: true, fontSize: 8, color: GRAY, fill: { color: LIGHT_BG } } },
+          { text: 'Capability', options: { bold: true, fontSize: 8, color: GRAY, fill: { color: LIGHT_BG }, align: 'center' } },
+          { text: 'Influence', options: { bold: true, fontSize: 8, color: GRAY, fill: { color: LIGHT_BG }, align: 'center' } },
+          { text: 'Stability', options: { bold: true, fontSize: 8, color: GRAY, fill: { color: LIGHT_BG }, align: 'center' } },
+        ]
+      ];
+      actors.slice(0, 10).forEach((actor: any) => {
+        matrixRows.push([
+          { text: actor.name || '', options: { fontSize: 8, color: DARK, bold: true } },
+          { text: actor.type || '', options: { fontSize: 8, color: actor.type === 'State' ? BLUE : actor.type === 'Military' ? ROSE : EMERALD } },
+          { text: `${((actor.capability || 0) * 100).toFixed(0)}%`, options: { fontSize: 8, color: DARK, align: 'center' } },
+          { text: `${((actor.influence || 0) * 100).toFixed(0)}%`, options: { fontSize: 8, color: DARK, align: 'center' } },
+          { text: `${((actor.stability || 0) * 100).toFixed(0)}%`, options: { fontSize: 8, color: DARK, align: 'center' } },
+        ]);
+      });
+      slide.addTable(matrixRows, { x: 0.4, y: 1.1, w: 5.2, colW: [1.6, 0.8, 0.8, 0.8, 0.8], border: { pt: 0.5, color: 'E2E8F0' }, fontFace: 'Arial', rowH: 0.3 });
+
+      // Right side: Chart Legend & Explanation
+      const legendX = 5.9;
+      slide.addText('HOW TO READ THIS MATRIX', { x: legendX, y: 1.1, w: 3.8, h: 0.3, fontSize: 9, bold: true, color: GRAY, fontFace: 'Arial' });
+
+      // Axes explanation
+      slide.addShape(pptx.ShapeType.rect, { x: legendX, y: 1.5, w: 3.8, h: 2.0, fill: { color: LIGHT_BG }, line: { color: 'E2E8F0', width: 0.5 } });
+
+      slide.addText('X-Axis: Actor Influence / Structural Power', { x: legendX + 0.15, y: 1.6, w: 3.5, h: 0.25, fontSize: 9, bold: true, color: DARK, fontFace: 'Arial' });
+      slide.addText('Normalized 0–1. Higher values indicate greater structural leverage and raw power capability of the actor.', { x: legendX + 0.15, y: 1.85, w: 3.5, h: 0.35, fontSize: 7.5, color: GRAY, fontFace: 'Arial', wrap: true });
+
+      slide.addText('Y-Axis: Strategic Alignment / Commitment', { x: legendX + 0.15, y: 2.25, w: 3.5, h: 0.25, fontSize: 9, bold: true, color: DARK, fontFace: 'Arial' });
+      slide.addText('Normalized 0–1. Higher values indicate stronger alignment with the scenario and willingness to act.', { x: legendX + 0.15, y: 2.5, w: 3.5, h: 0.35, fontSize: 7.5, color: GRAY, fontFace: 'Arial', wrap: true });
+
+      slide.addText('Dot Size: Stability Score', { x: legendX + 0.15, y: 2.9, w: 3.5, h: 0.25, fontSize: 9, bold: true, color: DARK, fontFace: 'Arial' });
+      slide.addText('Larger dots = more stable actors. Smaller dots = volatile or fragile actors.', { x: legendX + 0.15, y: 3.1, w: 3.5, h: 0.25, fontSize: 7.5, color: GRAY, fontFace: 'Arial', wrap: true });
+
+      // Color Legend
+      slide.addText('DOT COLOR LEGEND', { x: legendX, y: 3.6, w: 3.8, h: 0.25, fontSize: 9, bold: true, color: GRAY, fontFace: 'Arial' });
+
+      // State (Blue)
+      slide.addShape(pptx.ShapeType.ellipse, { x: legendX + 0.15, y: 3.93, w: 0.18, h: 0.18, fill: { color: BLUE } });
+      slide.addText('State actors — sovereign governments, national agencies', { x: legendX + 0.45, y: 3.85, w: 3.3, h: 0.3, fontSize: 8, color: DARK, fontFace: 'Arial' });
+
+      // Military (Red)
+      slide.addShape(pptx.ShapeType.ellipse, { x: legendX + 0.15, y: 4.23, w: 0.18, h: 0.18, fill: { color: ROSE } });
+      slide.addText('Military actors — armed forces, defense organizations', { x: legendX + 0.45, y: 4.15, w: 3.3, h: 0.3, fontSize: 8, color: DARK, fontFace: 'Arial' });
+
+      // Other (Green)
+      slide.addShape(pptx.ShapeType.ellipse, { x: legendX + 0.15, y: 4.53, w: 0.18, h: 0.18, fill: { color: EMERALD } });
+      slide.addText('Other actors — financial, tech, proxy, multilateral', { x: legendX + 0.45, y: 4.45, w: 3.3, h: 0.3, fontSize: 8, color: DARK, fontFace: 'Arial' });
+
+      // Quadrant interpretation
+      slide.addText('QUADRANT INTERPRETATION', { x: 0.4, y: 4.2, w: 5, h: 0.25, fontSize: 9, bold: true, color: GRAY, fontFace: 'Arial' });
+      slide.addText(
+        '• Top-Right: High power + High alignment → Key allies / dominant players\n' +
+        '• Top-Left: Low power + High alignment → Willing but limited actors\n' +
+        '• Bottom-Right: High power + Low alignment → Potential spoilers / blockers\n' +
+        '• Bottom-Left: Low power + Low alignment → Marginal actors',
+        { x: 0.4, y: 4.45, w: 5.2, h: 0.7, fontSize: 8, color: DARK, fontFace: 'Arial', lineSpacingMultiple: 1.3, wrap: true }
+      );
+
+      addFooter(slide, slideNum++);
+    }
   }
 
   // --- MARKET IMPACT ---
@@ -658,7 +746,7 @@ async function generatePDF(results: any) {
 import PaywallModal from './PaywallModal';
 import { useUser } from '../context/UserContext';
 
-export default function PresentationDeck({ results, onClose }: PresentationDeckProps) {
+export default function PresentationDeck({ results, problem, onClose }: PresentationDeckProps) {
   const { user, requestDownload } = useUser();
   const [isDownloading, setIsDownloading] = useState<'ppt' | 'pdf' | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
@@ -741,7 +829,7 @@ export default function PresentationDeck({ results, onClose }: PresentationDeckP
   const doDownload = async (type: 'ppt' | 'pdf') => {
     setIsDownloading(type);
     try {
-      if (type === 'ppt') await generatePPT(results);
+      if (type === 'ppt') await generatePPT(results, problem);
       if (type === 'pdf') await generatePDF(results);
     } catch (err) {
       console.error(`${type.toUpperCase()} generation failed:`, err);

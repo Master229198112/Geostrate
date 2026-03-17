@@ -15,7 +15,7 @@ function LayerCard({ title, value, max }: { title: string; value: number; max: n
   return (
     <div className="bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700 rounded-sm p-3">
       <div className="flex justify-between items-end mb-1.5">
-        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 uppercase tracking-widest">{title}</span>
+        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{title}</span>
         <span className="text-sm font-mono text-slate-700 dark:text-slate-300">{safeValue.toFixed(3)}</span>
       </div>
       <div className="h-1 w-full bg-slate-200 dark:bg-slate-600 rounded-none overflow-hidden">
@@ -25,12 +25,56 @@ function LayerCard({ title, value, max }: { title: string; value: number; max: n
   );
 }
 
-function SimSlider({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+// Correction 4: Variable descriptions
+const VARIABLE_DESCRIPTIONS: Record<string, { about: string; impact: string }> = {
+  HPA: {
+    about: 'Historical Path Allegiance — persistence of actors in legacy coordination structures.',
+    impact: 'Higher values indicate stronger structural memory, improving Structural Coherence (SCM).',
+  },
+  EII: {
+    about: 'Economic-Institutional Integration — depth of economic entanglement across regional institutions.',
+    impact: 'Increasing EII strengthens institutional binding, raising SCM and overall Ψ.',
+  },
+  CLS: {
+    about: 'Cultural-Linguistic Synchronization — alignment in socio-cultural and identity systems.',
+    impact: 'Higher CLS supports deeper coordination trust, improving SCM.',
+  },
+  GPI: {
+    about: 'Geopolitical Proximity Index — access to strategically critical geographies and corridors.',
+    impact: 'Affects structural leverage; higher GPI increases proximity-based coordination benefits.',
+  },
+  SI: {
+    about: 'Strategic Independence — autonomy in decision-making and geopolitical self-determination.',
+    impact: 'Higher SI reduces dependency risk, improving structural resilience.',
+  },
+  Flexibility: {
+    about: 'Economic Flexibility — ability to quickly redirect industrial, fiscal, or trade capacity.',
+    impact: 'Higher flexibility improves crisis adaptability, boosting CCI and PCC.',
+  },
+  WMC: {
+    about: 'Will-to-Mobilize Coefficient — level of psychological and political readiness for action.',
+    impact: 'Higher WMC increases Political Cohesion (CCI), improving institutional commitment.',
+  },
+  PS: {
+    about: 'Political Stability — robustness of the central authority against internal disruption.',
+    impact: 'Higher stability reduces fragility risk, directly improving CCI.',
+  },
+  EF: {
+    about: 'Economic Flexibility — ability to quickly redirect industrial and fiscal capacity.',
+    impact: 'Higher EF strengthens crisis adaptability and improves CCI.',
+  },
+  AC: {
+    about: 'Alliance Cohesion — reliability and depth of formal partnerships and agreements.',
+    impact: 'Higher AC improves collective commitment and lowers coordination failure risk.',
+  },
+};
+
+function SimSlider({ label, value, desc, onChange }: { label: string; value: number; desc?: { about: string; impact: string }; onChange: (v: number) => void }) {
   const safe = Number(value || 0);
   return (
     <div>
       <div className="flex justify-between items-center mb-1">
-        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</label>
+        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</label>
         <span className="text-[10px] font-mono text-blue-600">{safe.toFixed(2)}</span>
       </div>
       <input
@@ -39,6 +83,12 @@ function SimSlider({ label, value, onChange }: { label: string; value: number; o
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="w-full h-1 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
       />
+      {desc && (
+        <div className="mt-1 space-y-0.5">
+          <p className="text-[9px] text-slate-500 dark:text-slate-500 leading-snug">{desc.about}</p>
+          <p className="text-[9px] text-blue-500/70 leading-snug italic">{desc.impact}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -57,7 +107,7 @@ export default function SimulationPanel({ inputs, results, onInputsChange, onRes
   return (
     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-sm p-5 shadow-sm col-span-1 md:col-span-2">
       <h2 className="text-xs font-semibold text-slate-800 dark:text-slate-100 uppercase tracking-widest mb-4 flex items-center gap-2">
-        <SlidersHorizontal className="w-4 h-4 text-slate-500 dark:text-slate-400 dark:text-slate-500" />
+        <SlidersHorizontal className="w-4 h-4 text-slate-500 dark:text-slate-400" />
         CIPF Simulation Engine
       </h2>
 
@@ -70,12 +120,13 @@ export default function SimulationPanel({ inputs, results, onInputsChange, onRes
       </div>
 
       {/* Sliders */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-5">
         {KEY_VARIABLES.map((varKey) => (
           <div key={varKey}>
             <SimSlider
               label={varKey}
               value={Number((inputs as any)[varKey] || 0)}
+              desc={VARIABLE_DESCRIPTIONS[varKey]}
               onChange={(v) => handleChange(varKey, v)}
             />
           </div>

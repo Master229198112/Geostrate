@@ -272,7 +272,12 @@ export default function ActorMap({ results }: Props) {
                       </div>
                       {region.strategicImpact && (
                         <div style={{ marginTop: 6, borderTop: '1px solid #334155', paddingTop: 4 }}>
-                          <p style={{ fontSize: 10, color: '#94a3b8', lineHeight: 1.4, margin: 0 }}>{region.strategicImpact}</p>
+                          {region.economicShockIndex >= 0.7 && (
+                            <div style={{ marginBottom: 4, background: '#7f1d1d20', border: '1px solid #ef444440', borderRadius: 2, padding: '3px 6px' }}>
+                              <span style={{ fontSize: 8, fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.1em' }}>⚠ High Impact Justification</span>
+                            </div>
+                          )}
+                          <p style={{ fontSize: 10, color: region.economicShockIndex >= 0.7 ? '#fca5a5' : '#94a3b8', lineHeight: 1.4, margin: 0, fontWeight: region.economicShockIndex >= 0.7 ? 600 : 400 }}>{region.strategicImpact}</p>
                         </div>
                       )}
                     </div>

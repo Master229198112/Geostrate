@@ -105,6 +105,22 @@ function AppContent() {
     localStorage.setItem("geostrate_dark", String(darkMode));
   }, [darkMode]);
 
+  // Slide Show State
+  const [currentBg, setCurrentBg] = useState(0);
+  const bgImages = [
+    { src: '/images/bg_gov.png', class: 'w-[400px] lg:w-[600px] blur-[2px] transform -rotate-6 top-[-5%] left-[-5%]' },
+    { src: '/images/bg_fin.png', class: 'w-[400px] lg:w-[650px] blur-[1px] transform rotate-3 bottom-[-10%] right-[-5%]' },
+    { src: '/images/bg_corp.png', class: 'w-[300px] lg:w-[450px] blur-[3px] top-[30%] right-[5%]' },
+    { src: '/images/bg_gov_org.png', class: 'w-[350px] lg:w-[500px] blur-[2px] bottom-[20%] left-[5%]' }
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentBg(prev => (prev + 1) % bgImages.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [bgImages.length]);
+
   // Progress step animation during loading
   useEffect(() => {
     if (!loading) {
@@ -395,8 +411,22 @@ function AppContent() {
 
       {/* ═══════════ INPUT VIEW ═══════════ */}
       {viewState === "input" && (
-        <main className="flex-grow px-4 sm:px-6 lg:px-8 py-12 lg:py-16 max-w-[1400px] mx-auto w-full">
-          <div className="max-w-lg mx-auto w-full">
+        <main className="flex-grow relative px-4 sm:px-6 lg:px-8 py-12 lg:py-16 max-w-[1400px] mx-auto w-full overflow-hidden">
+          {/* Background Decorative Slideshow */}
+          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+            {bgImages.map((img, index) => (
+              <img
+                key={index}
+                src={img.src}
+                className={`absolute ${img.class} mix-blend-luminosity transition-opacity duration-[3000ms] ease-in-out ${
+                  index === currentBg ? 'opacity-30 dark:opacity-40' : 'opacity-0'
+                }`}
+                alt=""
+              />
+            ))}
+          </div>
+
+          <div className="max-w-lg mx-auto w-full relative z-10">
             {/* Input Form */}
             <div className="w-full">
               <div className="text-center mb-8">
@@ -409,15 +439,15 @@ function AppContent() {
                 </p>
               </div>
 
-              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-sm p-6 shadow-sm space-y-4">
+              <div className="backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border border-white/50 dark:border-slate-700/50 rounded-xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] space-y-5">
                 {/* Name */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
                     Name *
                   </label>
                   <input
                     type="text"
-                    className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm px-3 py-2.5 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full bg-white/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-600/80 rounded-lg px-4 py-3 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                     placeholder="Your full name"
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
@@ -426,14 +456,14 @@ function AppContent() {
                 </div>
 
                 {/* Mobile & Email row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
                       Mobile No. *
                     </label>
                     <input
                       type="tel"
-                      className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm px-3 py-2.5 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full bg-white/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-600/80 rounded-lg px-4 py-3 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                       placeholder="+91 98765 43210"
                       value={guestMobile}
                       onChange={(e) => setGuestMobile(e.target.value)}
@@ -441,12 +471,12 @@ function AppContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
                       Email ID *
                     </label>
                     <input
                       type="email"
-                      className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm px-3 py-2.5 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full bg-white/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-600/80 rounded-lg px-4 py-3 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                       placeholder="you@example.com"
                       value={guestEmail}
                       onChange={(e) => setGuestEmail(e.target.value)}
@@ -458,12 +488,12 @@ function AppContent() {
                 {/* Country & API Key row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
                       Country *
                     </label>
                     <input
                       type="text"
-                      className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm px-3 py-2.5 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full bg-white/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-600/80 rounded-lg px-4 py-3 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                       placeholder="India"
                       value={guestCountry}
                       onChange={(e) => setGuestCountry(e.target.value)}
@@ -471,7 +501,7 @@ function AppContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
                       Gemini API Key *{" "}
                       {hasStoredKey && (
                         <span className="text-emerald-500 ml-1">(stored)</span>
@@ -479,7 +509,7 @@ function AppContent() {
                     </label>
                     <input
                       type="password"
-                      className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm px-3 py-2.5 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full bg-white/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-600/80 rounded-lg px-4 py-3 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                       placeholder={hasStoredKey ? "••••••••" : "Gemini API Key"}
                       value={apiKey}
                       onChange={(e) => setApiKey(e.target.value)}
@@ -490,13 +520,13 @@ function AppContent() {
 
                 {/* Strategic Target Input */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
                     <Crosshair className="w-3 h-3 inline mr-1" />
                     Strategic Target Input *
                   </label>
                   <div className="relative">
                     <textarea
-                      className="w-full h-32 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm p-3 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all resize-none font-mono text-xs"
+                      className="w-full h-32 bg-white/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-600/80 rounded-lg p-4 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all resize-none font-mono text-xs shadow-inner"
                       placeholder="Enter coordination problem, actors, and context..."
                       value={problem}
                       onChange={(e) =>
@@ -523,7 +553,7 @@ function AppContent() {
                 <button
                   onClick={handleAnalyze}
                   disabled={loading}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase tracking-widest py-3 rounded-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-blue-600/90 hover:bg-blue-600 text-white text-xs font-bold uppercase tracking-widest py-3.5 rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm border border-blue-500/50"
                 >
                   Generate Intelligence Brief{" "}
                   <ChevronRight className="w-4 h-4" />
@@ -611,17 +641,20 @@ function AppContent() {
       {/* ═══════════ RESULTS VIEW ═══════════ */}
       {viewState === "results" && results && (
         <main className="flex-grow max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-          {/* Actor Intelligence Map */}
-          {results?.parsedData?.part2_ActorArchitecture?.actors?.length ? (
-            <div className="mb-6">
-              <ActorMap results={results} />
-            </div>
-          ) : null}
-
-          {/* Live News Feed */}
-          {results && problem && (
-            <div className="mb-6">
-              <LiveNewsPanel query={problem} />
+          {/* Correction 8: User Input at Top */}
+          {problem && (
+            <div className="mb-6 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-sm shadow-sm p-4">
+              <div className="flex items-start gap-3">
+                <Crosshair className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
+                    Strategic Target Input
+                  </div>
+                  <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap break-words">
+                    {problem}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -759,6 +792,20 @@ function AppContent() {
               )}
             </div>
           </div>
+
+          {/* Correction 2: Actor Intelligence Map — moved to bottom */}
+          {results?.parsedData?.part2_ActorArchitecture?.actors?.length ? (
+            <div className="mt-6">
+              <ActorMap results={results} />
+            </div>
+          ) : null}
+
+          {/* Correction 2: Live News Feed — moved to bottom */}
+          {results && problem && (
+            <div className="mt-6">
+              <LiveNewsPanel query={problem} />
+            </div>
+          )}
         </main>
       )}
 
@@ -959,6 +1006,7 @@ function AppContent() {
         >
           <PresentationDeck
             results={results}
+            problem={problem}
             onClose={() => setShowPresentation(false)}
           />
         </Suspense>
