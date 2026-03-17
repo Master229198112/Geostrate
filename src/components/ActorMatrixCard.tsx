@@ -21,7 +21,7 @@ export default function ActorMatrixCard({ actors }: Props) {
             <XAxis type="number" dataKey="capability" name="Capability" domain={[0, 1]} tick={{ fill: '#64748B', fontSize: 11 }} axisLine={{ stroke: '#CBD5E1' }} tickLine={false}>
               <Label value="Actor Influence / Structural Power (Normalized 0–1)" position="bottom" offset={20} style={{ fill: '#64748B', fontSize: 11, fontWeight: 600, textAnchor: 'middle' }} />
             </XAxis>
-            <YAxis type="number" dataKey="influence" name="Influence" domain={[0, 1]} tick={{ fill: '#64748B', fontSize: 10 }} axisLine={{ stroke: '#CBD5E1' }} tickLine={false}>
+            <YAxis type="number" dataKey="influence" name="Influence" domain={[0, 1]} tick={{ fill: '#64748B', fontSize: 11 }} axisLine={{ stroke: '#CBD5E1' }} tickLine={false}>
               <Label
                 content={({ viewBox }: any) => {
                   const cx = (viewBox?.x ?? 0) - 15;
