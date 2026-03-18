@@ -404,7 +404,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!user.plan) return res.status(403).json({ error: 'No active subscription. Please purchase a plan.' });
       if (!user.isActive) return res.status(403).json({ error: 'Account deactivated. Contact admin.' });
       const now = new Date().toISOString().split('T')[0];
-      if (user.expiresAt && now > user.expiresAt) return res.status(403).json({ error: 'Subscription expired' });
       if (user.downloadsUsed >= user.downloadsAllowed) return res.status(403).json({ error: 'Download limit reached. Upgrade your plan.' });
       if (type === 'ppt' && !user.features.ppt) return res.status(403).json({ error: 'PPT export not included in your plan' });
       if (type === 'pdf' && !user.features.pdf) return res.status(403).json({ error: 'PDF export not included in your plan' });
@@ -485,7 +484,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const plan = await Plan.findOne({ planId });
       if (!plan) return res.status(404).json({ error: 'Plan not found' });
       if (plan.price === 0) {
-        await User.updateOne({ _id: user._id }, { plan: plan.name, features: plan.features, downloadsAllowed: plan.downloads, downloadsUsed: 0, expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], isActive: true });
+        await User.updateOne({ _id: user._id }, { plan: plan.name, features: plan.features, downloadsAllowed: plan.downloads, downloadsUsed: 0, isActive: true });
         return res.json({ success: true, free: true, message: 'Free plan activated!' });
       }
       const amount = Math.round(plan.price * 100);
@@ -506,7 +505,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!user) return res.status(404).json({ error: 'User not found' });
       const plan = await Plan.findOne({ planId });
       if (!plan) return res.status(404).json({ error: 'Plan not found' });
-      await User.updateOne({ _id: user._id }, { plan: plan.name, features: plan.features, downloadsAllowed: plan.downloads, downloadsUsed: 0, expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], isActive: true });
+      await User.updateOne({ _id: user._id }, { plan: plan.name, features: plan.features, downloadsAllowed: plan.downloads, downloadsUsed: 0, isActive: true });
       await PendingRequest.create({ email: user.email, userId: user._id, planId, requestType: 'payment', status: 'completed', razorpayOrderId: razorpay_order_id, razorpayPaymentId: razorpay_payment_id, requestedAt: new Date().toISOString() });
       return res.json({ success: true, message: 'Payment successful! Your plan is now active.' });
     }
@@ -589,8 +588,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { email } = req.body;
       const sub = await Subscriber.findOne({ email, isActive: true });
       if (!sub) return res.status(404).json({ error: 'No active subscription found for this email' });
-      const now = new Date().toISOString().split('T')[0];
-      if (now > sub.expiresAt) return res.status(400).json({ error: 'Subscription expired' });
       if (sub.downloadsUsed >= sub.downloadsAllowed) return res.status(400).json({ error: 'Download limit reached' });
       return res.json({ success: true, sub });
     }
@@ -717,7 +714,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (pending.requestType === 'refill') {
         await User.updateOne({ email: pending.email }, { downloadsUsed: 0 });
       } else {
-        await User.updateOne({ email: pending.email }, { plan: plan.name, features: plan.features, downloadsAllowed: plan.downloads, downloadsUsed: 0, expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], isActive: true });
+        await User.updateOne({ email: pending.email }, { plan: plan.name, features: plan.features, downloadsAllowed: plan.downloads, downloadsUsed: 0, isActive: true });
       }
       await PendingRequest.findByIdAndDelete(pending._id);
       return res.json({ success: true });

@@ -114,7 +114,7 @@ export async function parseProblem(
   console.log("[Gemini] Call 1: Structure & Variables...");
   let call1Result: any;
   try {
-    const prompt = `Act as a global strategic intelligence analyst. Analyze this coordination problem and extract entities, structure, and map to CIPF v4.0 variables.
+    const prompt = `Act as a global strategic intelligence analyst. Analyze this coordination problem and extract entities, structure, and map to CIPF v4.0 + UHDA variables.
 
 Problem: ${problem}
 
@@ -136,6 +136,22 @@ Return a JSON object with ONLY these keys:
 
 Variable Definitions to guide scoring:
 ${variableInstructions}
+
+UHDA Extension Variables (also include in mappedVariables, all 0-1):
+- AIEI_threat: Adversarial Information Environment Index — disinformation threat level degrading institutional coherence
+- Procedural_Fairness: fairness and impartiality of decision-making processes
+- Voice_Inclusion: degree to which affected actors have voice in coordination
+- Outcome_Proportionality: proportionality of outcomes relative to input/stakes
+- Transparency: openness and auditability of institutional processes
+- Density: network density of actor coordination ties
+- Clustering: clustering coefficient of actor networks
+- Structural_Holes: presence of brokerage opportunities in actor networks
+- Small_World: small-world property of actor coordination graph
+- Platform_Accessibility: accessibility of digital coordination platforms
+- Algorithmic_Neutrality: neutrality of algorithmic systems in coordination
+- Connectivity: digital/physical connectivity between actors
+- Digital_Literacy: digital literacy of participating actors
+- Proc_Complexity: procedural complexity of the coordination problem
 
 Values 0-1 (except tau_max, sigma_max, baseline, load). Provide reasonable estimates. Keep string values concise.`;
 

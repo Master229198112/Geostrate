@@ -10,7 +10,6 @@ interface UserData {
   features: { ppt: boolean; pdf: boolean };
   downloadsAllowed: number;
   downloadsUsed: number;
-  expiresAt: string | null;
 }
 
 interface UserContextType {

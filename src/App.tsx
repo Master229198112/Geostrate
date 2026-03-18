@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { UserProvider, useUser } from "./context/UserContext";
 import { CIPFInputs } from "./lib/cipf_core";
+import { computeUHDA, UHDAResult } from "./lib/uhda_engine";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ExecutiveSummaryCard from "./components/ExecutiveSummaryCard";
 import EscalationTimeline from "./components/EscalationTimeline";
@@ -33,6 +34,8 @@ import OrderEffectsCard from "./components/OrderEffectsCard";
 import StrategicQACard from "./components/StrategicQACard";
 import DecisionArchitectureCard from "./components/DecisionArchitectureCard";
 import SimulationPanel from "./components/SimulationPanel";
+import CascadePhaseCard from "./components/CascadePhaseCard";
+import ScenarioPathsCard from "./components/ScenarioPathsCard";
 import { getCachedResult, setCachedResult } from "./lib/cache";
 import { addHistoryEntry } from "./lib/history";
 import AnalysisHistory from "./components/AnalysisHistory";
@@ -82,6 +85,7 @@ function AppContent() {
   // Simulation State
   const [simInputs, setSimInputs] = useState<CIPFInputs | null>(null);
   const [simResults, setSimResults] = useState<any>(null);
+  const [uhdaResults, setUhdaResults] = useState<UHDAResult | null>(null);
 
   // Modals
   const [activeModal, setActiveModal] = useState<
@@ -209,6 +213,9 @@ function AppContent() {
       setResults(cached);
       setSimInputs(cached.inputs);
       setSimResults(cached.cipf);
+      if (cached.inputs) {
+        try { setUhdaResults(computeUHDA(cached.inputs)); } catch { /* optional */ }
+      }
       setViewState("results");
       return;
     }
@@ -252,6 +259,12 @@ function AppContent() {
       setResults(data);
       setSimInputs(data.inputs);
       setSimResults(data.cipf);
+      // Auto-compute UHDA from the same mapped variables
+      if (data.inputs) {
+        try {
+          setUhdaResults(computeUHDA(data.inputs));
+        } catch { /* UHDA is optional, fail silently */ }
+      }
       setCachedResult(problem, data);
       const risk = data.parsedData?.executiveSummary?.globalRiskIndicator || 0;
       const psi = data.cipf?.Psi_final || 0;
@@ -721,6 +734,25 @@ function AppContent() {
                       <ErrorBoundary fallbackTitle="Scenario Projections Error">
                         <ScenarioProjectionsCard
                           scenarios={pd.part4_Scenarios}
+                        />
+                      </ErrorBoundary>
+                    )}
+
+                    {/* UHDA: Cascade Phase & Scenario Paths */}
+                    {uhdaResults && (
+                      <ErrorBoundary fallbackTitle="Cascade Analysis Error">
+                        <CascadePhaseCard
+                          cascadeStage={uhdaResults.cascade_stage}
+                          cascadePhase={uhdaResults.cascade_phase}
+                          riskScore={uhdaResults.risk_score}
+                          psiRev={uhdaResults.Psi_rev}
+                        />
+                      </ErrorBoundary>
+                    )}
+                    {uhdaResults?.scenario_paths && (
+                      <ErrorBoundary fallbackTitle="Scenario Paths Error">
+                        <ScenarioPathsCard
+                          scenarios={uhdaResults.scenario_paths}
                         />
                       </ErrorBoundary>
                     )}

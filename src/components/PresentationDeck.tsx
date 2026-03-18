@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FileText, Presentation, X, Key, AlertCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import pptxgen from 'pptxgenjs';
+import { computeUHDA } from '../lib/uhda_engine';
 
 interface PresentationDeckProps {
   results: any;
@@ -453,6 +454,99 @@ async function generatePPT(results: any, problem?: string) {
       });
       addFooter(slide, slideNum++);
     });
+  }
+
+  // --- UHDA: CASCADE ANALYSIS SLIDE ---
+  {
+    try {
+      const inputs = results.inputs || results.parsedData?.mappedVariables || {};
+      const uhda = computeUHDA(inputs);
+
+      // Cascade Analysis Slide
+      {
+        const slide = pptx.addSlide();
+        slide.background = { color: WHITE };
+        addLogo(slide);
+        slide.addText('UHDA — Cascade Stability Analysis', { x: 0.5, y: 0.3, w: 7, h: 0.5, fontSize: 22, bold: true, color: DARK, fontFace: 'Arial' });
+        slide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.85, w: 9, h: 0.02, fill: { color: 'E2E8F0' } });
+
+        // Current Phase
+        const phaseColors = [EMERALD, AMBER, 'F97316', ROSE, ROSE, 'B91C1C'];
+        const phaseColor = phaseColors[uhda.cascade_phase] || EMERALD;
+        slide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 1.2, w: 9, h: 1.1, fill: { color: LIGHT_BG }, line: { color: phaseColor, width: 1.5 } });
+        slide.addText('CURRENT PHASE', { x: 0.7, y: 1.3, w: 2, h: 0.25, fontSize: 8, bold: true, color: GRAY, fontFace: 'Arial' });
+        slide.addText(uhda.cascade_stage, { x: 0.7, y: 1.6, w: 5, h: 0.4, fontSize: 18, bold: true, color: phaseColor, fontFace: 'Arial' });
+        slide.addText(`Risk Score: ${(uhda.risk_score * 100).toFixed(1)}%`, { x: 6.5, y: 1.3, w: 2.8, h: 0.35, fontSize: 14, bold: true, color: uhda.risk_score >= 0.6 ? ROSE : uhda.risk_score >= 0.4 ? AMBER : EMERALD, fontFace: 'Arial', align: 'right' });
+        slide.addText(`Ψ (UHDA): ${uhda.Psi.toFixed(3)}  |  Ψ_rev: ${uhda.Psi_rev.toFixed(3)}`, { x: 6.5, y: 1.7, w: 2.8, h: 0.3, fontSize: 9, color: GRAY, fontFace: 'Arial', align: 'right' });
+
+        // 5-Phase Visual
+        const phases = ['Stable', 'Latent Pressure', 'Narrative Fracture', 'Emotional Mobilisation', 'Network Activation', 'Institutional Breakpoint'];
+        phases.forEach((p, i) => {
+          const x = 0.5 + i * 1.58;
+          const active = i <= uhda.cascade_phase;
+          slide.addShape(pptx.ShapeType.rect, { x, y: 2.6, w: 1.48, h: 0.25, fill: { color: active ? phaseColors[i] : 'E2E8F0' } });
+          slide.addText(i === 0 ? 'OK' : `P${i}`, { x, y: 2.9, w: 1.48, h: 0.2, fontSize: 7, bold: true, color: active ? phaseColors[i] : GRAY, fontFace: 'Arial', align: 'center' });
+          slide.addText(p, { x, y: 3.1, w: 1.48, h: 0.25, fontSize: 6, color: active ? DARK : GRAY, fontFace: 'Arial', align: 'center' });
+        });
+
+        // UHDA Diagnostics
+        slide.addText('KEY DIAGNOSTICS', { x: 0.5, y: 3.6, w: 3, h: 0.3, fontSize: 9, bold: true, color: GRAY, fontFace: 'Arial' });
+        const diag = uhda.diagnostics;
+        const diagItems = [
+          ['SCM Severity', diag.SCM_severity], ['PCC', diag.PCC], ['ICS', diag.ICS],
+          ['NAI', diag.NAI], ['LAS', diag.LAS], ['IFA (effective)', diag.IFA_effective],
+          ['Ω (Omega)', diag.Omega], ['Φ (Phi)', diag.Phi], ['Θ (Theta)', diag.Theta],
+        ];
+        diagItems.forEach(([label, value], i) => {
+          const col = i % 3;
+          const row = Math.floor(i / 3);
+          const x = 0.5 + col * 3.15;
+          const y = 3.95 + row * 0.4;
+          slide.addText(`${label}: ${Number(value).toFixed(3)}`, { x, y, w: 3, h: 0.3, fontSize: 9, color: DARK, fontFace: 'Arial' });
+        });
+
+        addFooter(slide, slideNum++);
+      }
+
+      // Scenario Paths Slide
+      if (uhda.scenario_paths?.length > 0) {
+        const slide = pptx.addSlide();
+        slide.background = { color: WHITE };
+        addLogo(slide);
+        slide.addText('UHDA — Scenario Probability Paths', { x: 0.5, y: 0.3, w: 7, h: 0.5, fontSize: 22, bold: true, color: DARK, fontFace: 'Arial' });
+        slide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.85, w: 9, h: 0.02, fill: { color: 'E2E8F0' } });
+
+        const scenarioColors = [EMERALD, AMBER, 'F97316', ROSE];
+        const maxProb = Math.max(...uhda.scenario_paths.map(s => s.probability));
+
+        uhda.scenario_paths.forEach((scenario, i) => {
+          const y = 1.2 + i * 1.0;
+          const barW = Math.max(0.3, scenario.probability * 8);
+          const color = scenarioColors[i % scenarioColors.length];
+          const isMax = scenario.probability === maxProb;
+
+          if (isMax) {
+            slide.addShape(pptx.ShapeType.rect, { x: 0.4, y: y - 0.05, w: 9.2, h: 0.9, fill: { color: LIGHT_BG }, line: { color: BLUE, width: 0.5 } });
+          }
+
+          slide.addText(scenario.name, { x: 0.5, y, w: 2.5, h: 0.3, fontSize: 12, bold: true, color: isMax ? DARK : GRAY, fontFace: 'Arial' });
+          if (isMax) {
+            slide.addText('MOST LIKELY', { x: 0.5, y: y + 0.3, w: 1.5, h: 0.2, fontSize: 7, bold: true, color: BLUE, fontFace: 'Arial' });
+          }
+
+          // Bar
+          slide.addShape(pptx.ShapeType.rect, { x: 3.2, y: y + 0.05, w: barW, h: 0.25, fill: { color } });
+          slide.addText(`${(scenario.probability * 100).toFixed(0)}%`, { x: 3.2 + barW + 0.1, y: y - 0.02, w: 1, h: 0.35, fontSize: 12, bold: true, color, fontFace: 'Arial' });
+
+          // Description
+          slide.addText(scenario.description, { x: 3.2, y: y + 0.4, w: 6.2, h: 0.3, fontSize: 8, color: GRAY, fontFace: 'Arial' });
+        });
+
+        addFooter(slide, slideNum++);
+      }
+    } catch {
+      // UHDA computation is optional — skip silently if it fails
+    }
   }
 
   // --- APPENDIX: VARIABLE MAPPING ---

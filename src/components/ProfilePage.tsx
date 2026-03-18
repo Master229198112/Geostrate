@@ -193,7 +193,7 @@ export default function ProfilePage({ onClose }: Props) {
     ? Math.min(100, (user.downloadsUsed / user.downloadsAllowed) * 100)
     : 0;
 
-  const isExpired = user.expiresAt && user.expiresAt < new Date().toISOString().split('T')[0];
+
 
   return (
     <div className="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -344,11 +344,7 @@ export default function ProfilePage({ onClose }: Props) {
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <span className="text-lg font-bold text-blue-600 dark:text-blue-400">{user.plan}</span>
-                  {isExpired ? (
-                    <span className="text-[10px] font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded-sm uppercase tracking-widest">Expired</span>
-                  ) : (
-                    <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-sm uppercase tracking-widest">Active</span>
-                  )}
+                  <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-sm uppercase tracking-widest">Active</span>
                 </div>
 
                 {/* Usage Bar */}
@@ -380,15 +376,8 @@ export default function ProfilePage({ onClose }: Props) {
                   </div>
                 </div>
 
-                {/* Expiry */}
-                {user.expiresAt && (
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <Clock className="w-3 h-3" /> Expires: <span className="font-mono">{user.expiresAt}</span>
-                  </div>
-                )}
-
                 {/* Refill Button */}
-                {user.downloadsUsed > 0 && !isExpired && (
+                {user.downloadsUsed > 0 && (
                   <button
                     onClick={handleRefill}
                     disabled={buyingPlan !== null}

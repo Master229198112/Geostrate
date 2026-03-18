@@ -475,7 +475,6 @@ export default function AdminPanel({ onClose }: Props) {
                             <th className="px-6 py-4">Email</th>
                             <th className="px-6 py-4">Plan (Status)</th>
                             <th className="px-6 py-4">Usage</th>
-                            <th className="px-6 py-4">Expiry</th>
                             <th className="px-6 py-4 text-right">Actions</th>
                           </tr>
                         </thead>
@@ -498,12 +497,6 @@ export default function AdminPanel({ onClose }: Props) {
                                     Revoked
                                   </span>
                                 )}
-                                {sub.expiresAt <
-                                  new Date().toISOString().split("T")[0] && (
-                                  <span className="ml-2 bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-sm uppercase tracking-widest">
-                                    Expired
-                                  </span>
-                                )}
                               </td>
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-2">
@@ -519,9 +512,6 @@ export default function AdminPanel({ onClose }: Props) {
                                     {sub.downloadsUsed} / {sub.downloadsAllowed}
                                   </span>
                                 </div>
-                              </td>
-                              <td className="px-6 py-4 text-slate-500 text-xs font-mono">
-                                {sub.expiresAt}
                               </td>
                               <td className="px-6 py-4 text-right">
                                 <div className="flex gap-1 justify-end">
