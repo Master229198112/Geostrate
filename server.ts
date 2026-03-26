@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: '.env.local' });
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import { parseProblem } from './src/backend/gemini_service';
@@ -66,7 +66,7 @@ function maskKey(key: string): string {
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT || 8080;
+  const PORT = 3000;
 
   // CORS
   app.use((req, res, next) => {
