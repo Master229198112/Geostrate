@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '.env' });
 import express from 'express';
 import { parseProblem } from './src/backend/gemini_service';
 import { retrieveEvidence } from './src/backend/evidence_service';
