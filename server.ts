@@ -1,16 +1,19 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import { parseProblem } from './src/backend/gemini_service';
 import { retrieveEvidence } from './src/backend/evidence_service';
 import { computeCIPF } from './src/lib/cipf_core';
 import { computeConfidence } from './src/backend/confidence_engine';
 import { generateReport } from './src/backend/report_generator';
-import path from 'path';
+import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
+
+// ES Module __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // ===== RATE LIMITER =====
 const RATE_LIMIT_WINDOW = 60_000; // 1 minute
@@ -66,7 +69,7 @@ function maskKey(key: string): string {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = parseInt(process.env.PORT || '3000', 10);
 
   // CORS
   app.use((req, res, next) => {
@@ -80,7 +83,7 @@ async function startServer() {
     if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app') || origin.endsWith('.aircwou.in')) {
       res.header('Access-Control-Allow-Origin', origin || '*');
     }
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
@@ -967,15 +970,19 @@ async function startServer() {
   });
 
   if (process.env.NODE_ENV !== 'production') {
+    // Dynamically import Vite only in dev mode (not available in production)
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static('dist'));
+    // Serve the built frontend from dist/
+    const distPath = path.resolve(__dirname, 'dist');
+    app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+      res.sendFile(path.resolve(distPath, 'index.html'));
     });
   }
 
