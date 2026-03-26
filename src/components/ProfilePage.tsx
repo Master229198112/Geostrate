@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User as UserIcon, Mail, Edit3, Save, X, Crown, Download, Clock, Check, CreditCard, AlertCircle, CheckCircle2, RefreshCw, Key, Trash2 } from 'lucide-react';
+import { User as UserIcon, Mail, Edit3, Save, X, Crown, Download, Clock, Check, CreditCard, AlertCircle, CheckCircle2, RefreshCw, Key, Trash2, Lock } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 
 interface Plan {
@@ -34,6 +34,14 @@ export default function ProfilePage({ onClose }: Props) {
   const [keySource, setKeySource] = useState('');
   const [keySaving, setKeySaving] = useState(false);
   const [keyMsg, setKeyMsg] = useState('');
+
+  // Change Password state
+  const [currentPwd, setCurrentPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [pwdSaving, setPwdSaving] = useState(false);
+  const [pwdMsg, setPwdMsg] = useState('');
+  const [pwdError, setPwdError] = useState('');
 
   useEffect(() => {
     fetchPlans();
@@ -72,6 +80,32 @@ export default function ProfilePage({ onClose }: Props) {
       alert(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setPwdMsg('');
+    setPwdError('');
+    if (!currentPwd || !newPwd) { setPwdError('All fields are required'); return; }
+    if (newPwd.length < 6) { setPwdError('New password must be at least 6 characters'); return; }
+    if (newPwd !== confirmPwd) { setPwdError('New passwords do not match'); return; }
+    setPwdSaving(true);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ currentPassword: currentPwd, newPassword: newPwd })
+      });
+      const text = await res.text();
+      let data: any;
+      try { data = JSON.parse(text); } catch { throw new Error(res.ok ? 'Invalid server response' : `Server error (${res.status})`); }
+      if (!res.ok) throw new Error(data.error || 'Failed to change password');
+      setPwdMsg(data.message);
+      setCurrentPwd(''); setNewPwd(''); setConfirmPwd('');
+    } catch (err: any) {
+      setPwdError(err.message);
+    } finally {
+      setPwdSaving(false);
     }
   };
 
@@ -252,6 +286,66 @@ export default function ProfilePage({ onClose }: Props) {
                   <span className="font-mono">{user.email}</span>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* ===== SECTION: CHANGE PASSWORD ===== */}
+          <div className="bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-600 rounded-sm p-5">
+            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Lock className="w-4 h-4" /> Change Password
+            </h3>
+
+            {pwdMsg && (
+              <div className="mb-3 p-2 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs rounded-sm flex items-center gap-1.5">
+                <CheckCircle2 className="w-3 h-3" /> {pwdMsg}
+              </div>
+            )}
+            {pwdError && (
+              <div className="mb-3 p-2 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs rounded-sm flex items-center gap-1.5">
+                <AlertCircle className="w-3 h-3" /> {pwdError}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 ml-0.5">Current Password</label>
+                <input
+                  type="password"
+                  value={currentPwd}
+                  onChange={e => setCurrentPwd(e.target.value)}
+                  placeholder="Enter current password"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 ml-0.5">New Password</label>
+                  <input
+                    type="password"
+                    value={newPwd}
+                    onChange={e => setNewPwd(e.target.value)}
+                    placeholder="Min 6 characters"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm text-sm focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 ml-0.5">Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={confirmPwd}
+                    onChange={e => setConfirmPwd(e.target.value)}
+                    placeholder="Re-enter new password"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm text-sm focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={handleChangePassword}
+                disabled={pwdSaving || !currentPwd || !newPwd || !confirmPwd}
+                className="bg-slate-800 dark:bg-blue-600 hover:bg-slate-700 dark:hover:bg-blue-500 text-white font-bold px-5 py-2 rounded-sm text-xs uppercase tracking-widest transition-colors disabled:opacity-50"
+              >
+                {pwdSaving ? 'Updating...' : 'Update Password'}
+              </button>
             </div>
           </div>
 

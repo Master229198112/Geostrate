@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
+dotenv.config();
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import { parseProblem } from './src/backend/gemini_service';
@@ -66,7 +66,7 @@ function maskKey(key: string): string {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 8080;
 
   // CORS
   app.use((req, res, next) => {
@@ -392,6 +392,24 @@ async function startServer() {
         success: true,
         user: { id: user._id, name: user.name, email: user.email, plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed, expiresAt: user.expiresAt }
       });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Change user password
+  app.post('/api/auth/change-password', requireUser, async (req: any, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Current password and new password are required' });
+      if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      const user = await User.findById(req.userId);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      const match = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!match) return res.status(401).json({ error: 'Current password is incorrect' });
+      const hashed = await bcrypt.hash(newPassword, 12);
+      await User.updateOne({ _id: req.userId }, { passwordHash: hashed });
+      res.json({ success: true, message: 'Password changed successfully' });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

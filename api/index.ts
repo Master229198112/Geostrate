@@ -425,6 +425,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    // POST /api/auth/change-password
+    if (path === '/api/auth/change-password' && req.method === 'POST') {
+      const userId = await requireUser();
+      if (!userId) return;
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Current password and new password are required' });
+      if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      const user = await User.findById(userId);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      const match = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!match) return res.status(401).json({ error: 'Current password is incorrect' });
+      const hashed = await bcrypt.hash(newPassword, 12);
+      await User.updateOne({ _id: userId }, { passwordHash: hashed });
+      return res.json({ success: true, message: 'Password changed successfully' });
+    }
+
     // PUT /api/auth/api-key
     if (path === '/api/auth/api-key' && req.method === 'PUT') {
       const userId = await requireUser();
