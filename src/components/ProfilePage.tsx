@@ -9,7 +9,6 @@ interface Plan {
   price: number;
   downloads: number;
   features: { ppt: boolean; pdf: boolean };
-  includesApiKey?: boolean;
 }
 
 interface Props {
@@ -389,11 +388,11 @@ export default function ProfilePage({ onClose }: Props) {
                   </button>
                 )}
                 <p className="text-[10px] text-slate-400">
-                  {keySource === 'plan' ? 'This key is provided by your subscription plan. You can override it by setting a personal key below.' : 'Your personal key is encrypted and stored securely. It is never visible to anyone.'}
+                  {keySource === 'plan' ? 'This key was assigned by the admin for your subscription plan. You can override it by setting a personal key below.' : 'Your personal key is encrypted and stored securely. It is never visible to anyone.'}
                 </p>
               </div>
             ) : (
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">No API key set. Enter your own Gemini API key below, or purchase a plan that includes one.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">No API key set. Your API key will be assigned by admin after subscription approval, or you can enter your own Gemini API key below.</p>
             )}
 
             <div className="mt-3 flex gap-2">
@@ -533,11 +532,9 @@ export default function ProfilePage({ onClose }: Props) {
                         <li className="flex items-center gap-1.5">
                           {p.features.ppt ? <Check className="w-3 h-3 text-emerald-500" /> : <X className="w-3 h-3 text-slate-300" />} PPT
                         </li>
-                        {p.includesApiKey && (
-                          <li className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold">
-                            <Key className="w-3 h-3" /> API Key Included
-                          </li>
-                        )}
+                        <li className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-bold">
+                          <Key className="w-3 h-3" /> API Key (Admin Assigned)
+                        </li>
                       </ul>
                       {!isCurrent && (
                         <button

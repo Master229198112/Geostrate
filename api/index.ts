@@ -642,6 +642,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ success: true, message: 'Password changed successfully' });
     }
 
+    // POST /api/admin/reset-password
+    if (path === '/api/admin/reset-password' && req.method === 'POST') {
+      const { resetSecret, newPassword } = req.body;
+      if (!resetSecret || !newPassword) return res.status(400).json({ error: 'Reset secret and new password are required' });
+      if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+
+      const envSecret = process.env.ADMIN_RESET_SECRET;
+      if (!envSecret) return res.status(500).json({ error: 'ADMIN_RESET_SECRET not configured in environment' });
+      if (resetSecret !== envSecret) return res.status(401).json({ error: 'Invalid reset secret' });
+
+      const hashed = await bcrypt.hash(newPassword, 12);
+      await AdminConfig.updateOne({ key: 'adminPassword' }, { value: hashed });
+      return res.json({ success: true, message: 'Admin password reset successfully' });
+    }
+
     // GET /api/admin/data
     if (path === '/api/admin/data' && req.method === 'GET') {
       if (!requireAdmin()) return;

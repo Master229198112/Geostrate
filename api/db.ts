@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { seedVariables } from './seed_vars.js';
 
 // ===== CONNECTION =====
 let connected = false;
@@ -12,12 +11,6 @@ export async function connectDB() {
   await mongoose.connect(uri);
   connected = true;
   console.log('✅ MongoDB connected');
-  
-  try {
-    await seedVariables();
-  } catch (err) {
-    console.error('Failed to seed variables:', err);
-  }
 }
 
 // ===== SCHEMAS =====
@@ -58,7 +51,6 @@ const planSchema = new mongoose.Schema({
   downloads: { type: Number, required: true },
   features:  { ppt: Boolean, pdf: Boolean },
   isActive:  { type: Boolean, default: true },
-  includesApiKey: { type: Boolean, default: false },  // true for plans that include a Gemini API key
   encryptedApiKey: { type: String, default: null },  // admin sets plan-level API key (AES-256 encrypted)
 }, { timestamps: true, strict: false });
 

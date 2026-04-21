@@ -13,6 +13,7 @@ import {
   BarChart3,
   Sliders,
   Search,
+  Key,
   Plus,
 } from "lucide-react";
 
@@ -49,6 +50,18 @@ export default function AdminPanel({ onClose }: Props) {
   const [confirmPass, setConfirmPass] = useState("");
   const [passMsg, setPassMsg] = useState("");
   const [passError, setPassError] = useState("");
+
+  // Reset password state (on login screen)
+  const [showReset, setShowReset] = useState(false);
+  const [resetSecret, setResetSecret] = useState("");
+  const [resetNewPass, setResetNewPass] = useState("");
+  const [resetConfirmPass, setResetConfirmPass] = useState("");
+  const [resetMsg, setResetMsg] = useState("");
+  const [resetError, setResetError] = useState("");
+  const [resetting, setResetting] = useState(false);
+
+  // API Key state for pending request approval
+  const [approvalApiKeys, setApprovalApiKeys] = useState<Record<string, string>>({});
 
   // Variable tab state
   const [varSearch, setVarSearch] = useState("");
@@ -139,16 +152,24 @@ export default function AdminPanel({ onClose }: Props) {
   // ----- Actions -----
 
   const approveRequest = async (req: any) => {
+    const apiKey = approvalApiKeys[req._id] || '';
+    if (!apiKey.trim()) {
+      const proceed = confirm('No API key entered for this user. Approve without assigning an API key?');
+      if (!proceed) return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`/api/admin/approve-user/${req._id}`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ apiKey: apiKey.trim() || undefined }),
       });
       if (!res.ok) {
         const data = await res.json();
         alert(data.error || "Failed to approve");
       }
+      // Clear the API key input for this request
+      setApprovalApiKeys(prev => { const next = { ...prev }; delete next[req._id]; return next; });
       await fetchData();
     } catch (err) {
       alert("Error approving request");
@@ -250,6 +271,32 @@ export default function AdminPanel({ onClose }: Props) {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetMsg("");
+    setResetError("");
+    if (!resetSecret || !resetNewPass) { setResetError("All fields are required"); return; }
+    if (resetNewPass.length < 6) { setResetError("New password must be at least 6 characters"); return; }
+    if (resetNewPass !== resetConfirmPass) { setResetError("Passwords do not match"); return; }
+    setResetting(true);
+    try {
+      const res = await fetch("/api/admin/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resetSecret, newPassword: resetNewPass }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Reset failed");
+      setResetMsg("Password reset successfully! You can now login.");
+      setResetSecret(""); setResetNewPass(""); setResetConfirmPass("");
+      setTimeout(() => { setShowReset(false); setResetMsg(""); }, 2000);
+    } catch (err: any) {
+      setResetError(err.message);
+    } finally {
+      setResetting(false);
+    }
+  };
+
   // ----- Renders -----
 
   if (!token) {
@@ -268,32 +315,102 @@ export default function AdminPanel({ onClose }: Props) {
             </div>
           </div>
           <h2 className="text-xl font-bold text-center text-slate-800 dark:text-slate-100 mb-6 uppercase tracking-wider">
-            Admin Access
+            {showReset ? "Reset Password" : "Admin Access"}
           </h2>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter Admin Password"
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm text-center text-lg focus:outline-none focus:border-rose-500"
-                required
-              />
-            </div>
-            {error && (
-              <p className="text-rose-500 text-sm text-center font-medium">
-                {error}
-              </p>
-            )}
-            <button
-              type="submit"
-              disabled={loading || !password}
-              className="w-full bg-slate-800 hover:bg-slate-700 dark:bg-rose-600 dark:hover:bg-rose-500 text-white font-bold py-3 rounded-sm transition-colors uppercase tracking-widest disabled:opacity-50"
-            >
-              {loading ? "Authenticating..." : "Login"}
-            </button>
-          </form>
+
+          {showReset ? (
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Reset Secret</label>
+                <input
+                  type="password"
+                  value={resetSecret}
+                  onChange={(e) => setResetSecret(e.target.value)}
+                  placeholder="Enter ADMIN_RESET_SECRET from .env"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm text-sm focus:outline-none focus:border-rose-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">New Password</label>
+                <input
+                  type="password"
+                  value={resetNewPass}
+                  onChange={(e) => setResetNewPass(e.target.value)}
+                  placeholder="Min 6 characters"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm text-sm focus:outline-none focus:border-rose-500"
+                  required
+                  minLength={6}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={resetConfirmPass}
+                  onChange={(e) => setResetConfirmPass(e.target.value)}
+                  placeholder="Re-enter new password"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm text-sm focus:outline-none focus:border-rose-500"
+                  required
+                  minLength={6}
+                />
+              </div>
+              {resetError && (
+                <p className="text-rose-500 text-sm text-center font-medium">{resetError}</p>
+              )}
+              {resetMsg && (
+                <p className="text-emerald-600 text-sm text-center font-medium">{resetMsg}</p>
+              )}
+              <button
+                type="submit"
+                disabled={resetting || !resetSecret || !resetNewPass || !resetConfirmPass}
+                className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-sm transition-colors uppercase tracking-widest disabled:opacity-50"
+              >
+                {resetting ? "Resetting..." : "Reset Password"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowReset(false); setResetError(""); setResetMsg(""); }}
+                className="w-full text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-xs font-bold uppercase tracking-widest py-2 transition-colors"
+              >
+                ← Back to Login
+              </button>
+            </form>
+          ) : (
+            <>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter Admin Password"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm text-center text-lg focus:outline-none focus:border-rose-500"
+                    required
+                  />
+                </div>
+                {error && (
+                  <p className="text-rose-500 text-sm text-center font-medium">
+                    {error}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={loading || !password}
+                  className="w-full bg-slate-800 hover:bg-slate-700 dark:bg-rose-600 dark:hover:bg-rose-500 text-white font-bold py-3 rounded-sm transition-colors uppercase tracking-widest disabled:opacity-50"
+                >
+                  {loading ? "Authenticating..." : "Login"}
+                </button>
+              </form>
+              <button
+                type="button"
+                onClick={() => setShowReset(true)}
+                className="w-full mt-3 text-slate-400 hover:text-rose-500 text-xs font-bold uppercase tracking-widest py-2 transition-colors"
+              >
+                Forgot Password?
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -413,6 +530,7 @@ export default function AdminPanel({ onClose }: Props) {
                             <th className="px-6 py-4">Email</th>
                             <th className="px-6 py-4">Requested Plan</th>
                             <th className="px-6 py-4">Date</th>
+                            <th className="px-6 py-4">API Key</th>
                             <th className="px-6 py-4 text-right">Actions</th>
                           </tr>
                         </thead>
@@ -429,6 +547,18 @@ export default function AdminPanel({ onClose }: Props) {
                               </td>
                               <td className="px-6 py-4 text-slate-400 text-xs">
                                 {new Date(req.requestedAt).toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-1">
+                                  <Key className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                  <input
+                                    type="password"
+                                    placeholder="Gemini API Key"
+                                    value={approvalApiKeys[req._id] || ''}
+                                    onChange={(e) => setApprovalApiKeys(prev => ({ ...prev, [req._id]: e.target.value }))}
+                                    className="w-40 px-2 py-1 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-sm text-xs font-mono focus:outline-none focus:border-blue-500"
+                                  />
+                                </div>
                               </td>
                               <td className="px-6 py-4 flex justify-end gap-2">
                                 <button
@@ -521,45 +651,43 @@ export default function AdminPanel({ onClose }: Props) {
                                   >
                                     {sub.isActive ? "Revoke" : "Restore"}
                                   </button>
-                                  {sub.plan === "Advance" && (
-                                    <button
-                                      onClick={async () => {
-                                        const key = prompt(
-                                          `Set Gemini API Key for ${sub.name || sub.email}:\n(Leave empty to remove)`,
-                                        );
-                                        if (key === null) return;
-                                        try {
-                                          await fetch(
-                                            `/api/admin/user/${sub._id}/api-key`,
-                                            {
-                                              method: "POST",
-                                              headers: {
-                                                "Content-Type":
-                                                  "application/json",
-                                                Authorization: `Bearer ${token}`,
-                                              },
-                                              body: JSON.stringify({
-                                                apiKey: key || "",
-                                              }),
+                                  <button
+                                    onClick={async () => {
+                                      const key = prompt(
+                                        `Set Gemini API Key for ${sub.name || sub.email}:\n(Leave empty to remove)`,
+                                      );
+                                      if (key === null) return;
+                                      try {
+                                        await fetch(
+                                          `/api/admin/user/${sub._id}/api-key`,
+                                          {
+                                            method: "POST",
+                                            headers: {
+                                              "Content-Type":
+                                                "application/json",
+                                              Authorization: `Bearer ${token}`,
                                             },
-                                          );
-                                          alert(
-                                            key
-                                              ? "API key set!"
-                                              : "API key removed.",
-                                          );
-                                          fetchData();
-                                        } catch {
-                                          alert("Failed");
-                                        }
-                                      }}
-                                      className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 border rounded-sm transition-colors ${sub.encryptedApiKey ? "text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:border-emerald-900/50 dark:hover:bg-emerald-900/20" : "text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900/50 dark:hover:bg-blue-900/20"}`}
-                                    >
-                                      {sub.encryptedApiKey
-                                        ? "🔑 Key Set"
-                                        : "Set Key"}
-                                    </button>
-                                  )}
+                                            body: JSON.stringify({
+                                              apiKey: key || "",
+                                            }),
+                                          },
+                                        );
+                                        alert(
+                                          key
+                                            ? "API key set!"
+                                            : "API key removed.",
+                                        );
+                                        fetchData();
+                                      } catch {
+                                        alert("Failed");
+                                      }
+                                    }}
+                                    className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 border rounded-sm transition-colors ${sub.encryptedApiKey ? "text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:border-emerald-900/50 dark:hover:bg-emerald-900/20" : "text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900/50 dark:hover:bg-blue-900/20"}`}
+                                  >
+                                    {sub.encryptedApiKey
+                                      ? "🔑 Key Set"
+                                      : "Set Key"}
+                                  </button>
                                 </div>
                               </td>
                             </tr>

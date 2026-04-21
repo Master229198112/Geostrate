@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env' });
+dotenv.config({ path: '.env.local' });
 import express from 'express';
 import { parseProblem } from './src/backend/gemini_service';
 import { retrieveEvidence } from './src/backend/evidence_service';
@@ -269,7 +269,13 @@ async function startServer() {
 
     } catch (error: any) {
       console.error(error);
-      res.status(500).json({ error: error.message || 'An error occurred during analysis.' });
+      const msg = (error.message || '').toLowerCase();
+      const isCapacityError = ['unavailable', '503', 'high demand', 'resource_exhausted', 'overloaded'].some(p => msg.includes(p));
+      if (isCapacityError) {
+        res.status(503).json({ error: 'The AI model is experiencing high demand right now. Please wait a minute and try again.' });
+      } else {
+        res.status(500).json({ error: error.message || 'An error occurred during analysis.' });
+      }
     }
   });
 
@@ -800,6 +806,25 @@ async function startServer() {
     }
   });
 
+  // Admin Reset Password (using ADMIN_RESET_SECRET from env)
+  app.post('/api/admin/reset-password', async (req, res) => {
+    try {
+      const { resetSecret, newPassword } = req.body;
+      if (!resetSecret || !newPassword) return res.status(400).json({ error: 'Reset secret and new password are required' });
+      if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+
+      const envSecret = process.env.ADMIN_RESET_SECRET;
+      if (!envSecret) return res.status(500).json({ error: 'ADMIN_RESET_SECRET not configured in environment' });
+      if (resetSecret !== envSecret) return res.status(401).json({ error: 'Invalid reset secret' });
+
+      const hashed = await bcrypt.hash(newPassword, 12);
+      await AdminConfig.updateOne({ key: 'adminPassword' }, { value: hashed });
+      res.json({ success: true, message: 'Admin password reset successfully' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Admin Data Read (all collections)
   app.get('/api/admin/data', requireAdmin, async (req: any, res) => {
     try {
@@ -870,7 +895,7 @@ async function startServer() {
     }
   });
 
-  // Admin Set API Key for a user (Advance plan)
+  // Admin Set API Key for any subscriber
   app.post('/api/admin/user/:id/api-key', requireAdmin, async (req: any, res) => {
     try {
       const { apiKey } = req.body;
@@ -927,7 +952,7 @@ async function startServer() {
     }
   });
 
-  // Admin: Approve user plan directly
+  // Admin: Approve user plan directly (with optional API key assignment)
   app.post('/api/admin/approve-user/:requestId', requireAdmin, async (req: any, res) => {
     try {
       const pending = await PendingRequest.findById(req.params.requestId);
@@ -936,12 +961,14 @@ async function startServer() {
       const plan = await Plan.findOne({ planId: pending.planId });
       if (!plan) return res.status(404).json({ error: 'Plan not found' });
 
+      const { apiKey } = req.body || {};
+
       if (pending.requestType === 'refill') {
         // Refill: just reset usage, keep same plan
         await User.updateOne({ email: pending.email }, { downloadsUsed: 0 });
       } else {
         // New buy or plan change
-        const userUpdate = {
+        const userUpdate: any = {
           plan: plan.name,
           features: plan.features,
           downloadsAllowed: plan.downloads,
@@ -949,6 +976,12 @@ async function startServer() {
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           isActive: true,
         };
+
+        // If admin provided an API key, encrypt and store it on the user
+        if (apiKey && apiKey.trim()) {
+          userUpdate.encryptedApiKey = encryptKey(apiKey.trim(), JWT_SECRET);
+        }
+
         await User.updateOne({ email: pending.email }, userUpdate);
       }
 

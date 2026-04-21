@@ -1,10 +1,27 @@
 import { GoogleGenAI } from "@google/genai";
 
 // ===== SHARED GEMINI CALL HELPER =====
+function isRetryableError(message: string): boolean {
+  const retryablePatterns = [
+    "RESOURCE_EXHAUSTED",
+    "UNAVAILABLE",
+    "503",
+    "high demand",
+    "overloaded",
+    "temporarily unavailable",
+    "INTERNAL",
+    "500",
+    "DEADLINE_EXCEEDED",
+  ];
+  const lower = message.toLowerCase();
+  return retryablePatterns.some((p) => lower.includes(p.toLowerCase()));
+}
+
 async function callGemini(ai: any, prompt: string): Promise<any> {
   let response: any;
-  let retries = 3;
-  let delay = 10000;
+  const maxRetries = 4;
+  let retries = maxRetries;
+  let delay = 15000; // Start at 15s for free-tier cooldown
 
   while (retries > 0) {
     try {
@@ -19,19 +36,30 @@ async function callGemini(ai: any, prompt: string): Promise<any> {
       });
       break;
     } catch (error: any) {
-      console.error(`Gemini API error: ${error.message}`);
+      const msg = error.message || String(error);
+      console.error(`Gemini API error (attempt ${maxRetries - retries + 1}/${maxRetries}): ${msg}`);
       retries--;
-      if (retries === 0 || !error.message?.includes("RESOURCE_EXHAUSTED")) {
+
+      if (retries === 0 || !isRetryableError(msg)) {
+        // Provide a user-friendly error for capacity issues
+        if (isRetryableError(msg)) {
+          throw new Error(
+            "The AI model is experiencing high demand right now. Please wait a minute and try again."
+          );
+        }
         throw error;
       }
-      console.log(`Rate limited. Retrying in ${delay}ms...`);
+
+      console.log(`Retryable error detected. Retrying in ${Math.round(delay / 1000)}s... (${retries} attempts left)`);
       await new Promise((resolve) => setTimeout(resolve, delay));
-      delay *= 2;
+      delay = Math.min(delay * 2, 60000); // Cap at 60s
     }
   }
 
   if (!response) {
-    throw new Error("Failed to get response from Gemini API after retries.");
+    throw new Error(
+      "The AI model is temporarily unavailable due to high demand. Please try again in a few minutes."
+    );
   }
 
   let text = response.text || "{}";
