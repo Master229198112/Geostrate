@@ -323,7 +323,7 @@ async function startServer() {
       const token = jwt.sign({ userId: user._id, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
       res.json({
         success: true, token,
-        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile || '', country: user.country || '', plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed, expiresAt: user.expiresAt }
+        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile || '', country: user.country || '', plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed }
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -345,7 +345,7 @@ async function startServer() {
       const token = jwt.sign({ userId: user._id, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
       res.json({
         success: true, token,
-        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile || '', country: user.country || '', plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed, expiresAt: user.expiresAt }
+        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile || '', country: user.country || '', plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed }
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -358,7 +358,7 @@ async function startServer() {
       const user = await User.findById(req.userId).select('-passwordHash');
       if (!user) return res.status(404).json({ error: 'User not found' });
       res.json({
-        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile || '', country: user.country || '', plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed, expiresAt: user.expiresAt }
+        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile || '', country: user.country || '', plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed }
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -375,8 +375,6 @@ async function startServer() {
       if (!user.plan) return res.status(403).json({ error: 'No active subscription. Please purchase a plan.' });
       if (!user.isActive) return res.status(403).json({ error: 'Account deactivated. Contact admin.' });
 
-      const now = new Date().toISOString().split('T')[0];
-      if (user.expiresAt && now > user.expiresAt) return res.status(403).json({ error: 'Subscription expired' });
       if (user.downloadsUsed >= user.downloadsAllowed) return res.status(403).json({ error: 'Download limit reached. Upgrade your plan.' });
 
       if (type === 'ppt' && !user.features.ppt) return res.status(403).json({ error: 'PPT export not included in your plan' });
@@ -399,7 +397,7 @@ async function startServer() {
       const user = await User.findById(req.userId).select('-passwordHash -encryptedApiKey');
       res.json({
         success: true,
-        user: { id: user._id, name: user.name, email: user.email, plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed, expiresAt: user.expiresAt }
+        user: { id: user._id, name: user.name, email: user.email, plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed }
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -506,7 +504,6 @@ async function startServer() {
           features: plan.features,
           downloadsAllowed: plan.downloads,
           downloadsUsed: 0,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           isActive: true,
         });
         return res.json({ success: true, free: true, message: 'Free plan activated!' });
@@ -573,7 +570,6 @@ async function startServer() {
         features: plan.features,
         downloadsAllowed: plan.downloads,
         downloadsUsed: 0,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         isActive: true,
       });
 
@@ -734,8 +730,6 @@ async function startServer() {
       const sub = await Subscriber.findOne({ email, isActive: true });
       if (!sub) return res.status(404).json({ error: 'No active subscription found for this email' });
 
-      const now = new Date().toISOString().split('T')[0];
-      if (now > sub.expiresAt) return res.status(400).json({ error: 'Subscription expired' });
       if (sub.downloadsUsed >= sub.downloadsAllowed) return res.status(400).json({ error: 'Download limit reached' });
 
       res.json({ success: true, sub });
@@ -973,7 +967,6 @@ async function startServer() {
           features: plan.features,
           downloadsAllowed: plan.downloads,
           downloadsUsed: 0,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           isActive: true,
         };
 

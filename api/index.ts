@@ -364,7 +364,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const token = jwt.sign({ userId: user._id, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
       return res.json({
         success: true, token,
-        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile || '', country: user.country || '', plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed, expiresAt: user.expiresAt }
+        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile || '', country: user.country || '', plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed }
       });
     }
 
@@ -379,7 +379,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const token = jwt.sign({ userId: user._id, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
       return res.json({
         success: true, token,
-        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile || '', country: user.country || '', plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed, expiresAt: user.expiresAt }
+        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile || '', country: user.country || '', plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed }
       });
     }
 
@@ -390,7 +390,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const user = await User.findById(userId).select('-passwordHash');
       if (!user) return res.status(404).json({ error: 'User not found' });
       return res.json({
-        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile || '', country: user.country || '', plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed, expiresAt: user.expiresAt }
+        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile || '', country: user.country || '', plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed }
       });
     }
 
@@ -403,7 +403,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!user) return res.status(404).json({ error: 'User not found' });
       if (!user.plan) return res.status(403).json({ error: 'No active subscription. Please purchase a plan.' });
       if (!user.isActive) return res.status(403).json({ error: 'Account deactivated. Contact admin.' });
-      const now = new Date().toISOString().split('T')[0];
       if (user.downloadsUsed >= user.downloadsAllowed) return res.status(403).json({ error: 'Download limit reached. Upgrade your plan.' });
       if (type === 'ppt' && !user.features.ppt) return res.status(403).json({ error: 'PPT export not included in your plan' });
       if (type === 'pdf' && !user.features.pdf) return res.status(403).json({ error: 'PDF export not included in your plan' });
@@ -421,7 +420,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const user = await User.findById(userId).select('-passwordHash -encryptedApiKey');
       return res.json({
         success: true,
-        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile || '', country: user.country || '', plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed, expiresAt: user.expiresAt }
+        user: { id: user._id, name: user.name, email: user.email, mobile: user.mobile || '', country: user.country || '', plan: user.plan, features: user.features, downloadsAllowed: user.downloadsAllowed, downloadsUsed: user.downloadsUsed }
       });
     }
 

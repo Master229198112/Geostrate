@@ -69,7 +69,6 @@ const userSchema = new mongoose.Schema({
   features:         { ppt: { type: Boolean, default: false }, pdf: { type: Boolean, default: false } },
   downloadsAllowed: { type: Number, default: 0 },
   downloadsUsed:    { type: Number, default: 0 },
-  expiresAt:        { type: String, default: null },
   isActive:         { type: Boolean, default: true },
   encryptedApiKey:  { type: String, default: null },  // user's personal API key (AES-256 encrypted)
 }, { timestamps: true, strict: false });
