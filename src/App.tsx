@@ -224,6 +224,11 @@ function AppContent() {
     setLoading(true);
     setError("");
     setProgressStep(0);
+
+    // 3.5 minute timeout to match server-side timeout
+    const controller = new AbortController();
+    const fetchTimeout = setTimeout(() => controller.abort(), 210000);
+
     try {
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -233,6 +238,7 @@ function AppContent() {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers,
+        signal: controller.signal,
         body: JSON.stringify({
           apiKey: hasStoredKey ? undefined : apiKey,
           problem: problem.trim(),
@@ -243,6 +249,8 @@ function AppContent() {
         }),
       });
 
+      clearTimeout(fetchTimeout);
+
       const text = await response.text();
       let data;
       try {
@@ -250,7 +258,7 @@ function AppContent() {
       } catch {
         throw new Error(
           response.ok
-            ? "Invalid response from server."
+            ? "Invalid response from server. The response was truncated or corrupted."
             : `Server error (${response.status}): ${text.substring(0, 200)}`,
         );
       }
@@ -271,7 +279,14 @@ function AppContent() {
       addHistoryEntry(problem, risk, psi);
       setViewState("results");
     } catch (err: any) {
-      setError(err.message);
+      clearTimeout(fetchTimeout);
+      if (err.name === 'AbortError') {
+        setError("The analysis timed out. The AI model is taking too long to respond. Please try again.");
+      } else if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError') || err.message?.includes('ERR_')) {
+        setError("Connection lost. The server may be busy or your network is unstable. Please try again.");
+      } else {
+        setError(err.message);
+      }
       setViewState("input");
     } finally {
       setLoading(false);
@@ -654,6 +669,27 @@ function AppContent() {
       {/* ═══════════ RESULTS VIEW ═══════════ */}
       {viewState === "results" && results && (
         <main className="flex-grow max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+          {/* Partial Response Warning */}
+          {(results as any)._partial && (
+            <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-600 rounded-sm shadow-sm flex items-start gap-3">
+              <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-amber-800 dark:text-amber-300">Partial Results</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                  Some analysis sections could not be generated due to AI model load. The executive summary and core metrics are complete, but detailed analysis cards (actors, markets, scenarios, etc.) may be missing.
+                </p>
+              </div>
+              <button
+                onClick={() => { setResults(null); setViewState("input"); }}
+                className="shrink-0 text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-800/40 hover:bg-amber-200 dark:hover:bg-amber-800/60 px-3 py-1.5 rounded-sm uppercase tracking-widest transition-colors border border-amber-300 dark:border-amber-600"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* Correction 8: User Input at Top */}
           {problem && (
             <div className="mb-6 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-sm shadow-sm p-4">

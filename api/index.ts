@@ -785,6 +785,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // ═══════════ ANALYZE (main endpoint) ═══════════
     if ((path === '/api/analyze' || path === '/api' || path === '') && req.method === 'POST') {
+      // Set keep-alive to prevent connection drops
+      res.setHeader('Connection', 'keep-alive');
+
       let { apiKey, problem } = req.body;
 
       // If user is logged in and has a stored key, use that
@@ -814,6 +817,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const variables = await VariableConfig.find({ isActive: true }).lean();
 
       const parsedData = await parseProblem(apiKey, problem, variables);
+
+      // Extract partial flag from Gemini service
+      const isPartial = parsedData._partial === true;
+      const partialReason = parsedData._partialReason || '';
+      delete parsedData._partial;
+      delete parsedData._partialReason;
+
       const evidence = {
         historicalCases: [
           { id: 'HC-001', description: 'Similar coordination failure in 2018', relevance: 0.85 },
@@ -873,7 +883,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error('Failed to save analysis log:', err);
       }
 
-      return res.status(200).json({ parsedData, evidence, cipf: cipfResults, confidence, report, inputs });
+      if (isPartial) {
+        console.warn(`[Analyze] Returning partial results. Reason: ${partialReason}`);
+      }
+
+      return res.status(200).json({ parsedData, evidence, cipf: cipfResults, confidence, report, inputs, _partial: isPartial });
     }
 
     // ═══════════ 404 ═══════════
@@ -881,6 +895,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error: any) {
     console.error('[Vercel] Error:', error.message || error);
+    const msg = (error.message || '').toLowerCase();
+    const isTimeoutError = ['timeout', 'deadline_exceeded', 'timed out'].some(p => msg.includes(p));
+    const isCapacityError = ['unavailable', '503', 'high demand', 'resource_exhausted', 'overloaded'].some(p => msg.includes(p));
+    if (isTimeoutError) {
+      return res.status(504).json({ error: 'The analysis is taking too long. Please try again.' });
+    } else if (isCapacityError) {
+      return res.status(503).json({ error: 'The AI model is experiencing high demand. Please wait a minute and try again.' });
+    }
     return res.status(500).json({ error: error.message || 'An error occurred.' });
   }
 }

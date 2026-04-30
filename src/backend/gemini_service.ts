@@ -19,13 +19,14 @@ function isRetryableError(message: string): boolean {
 
 async function callGemini(ai: any, prompt: string): Promise<any> {
   let response: any;
-  const maxRetries = 4;
+  const maxRetries = 3;
   let retries = maxRetries;
-  let delay = 15000; // Start at 15s for free-tier cooldown
+  let delay = 5000; // Start at 5s — reduced from 15s to keep total time under 2 mins
 
   while (retries > 0) {
     try {
-      response = await ai.models.generateContent({
+      // 90-second timeout per individual Gemini call to prevent indefinite hangs
+      const callPromise = ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: prompt,
         config: {
@@ -34,6 +35,12 @@ async function callGemini(ai: any, prompt: string): Promise<any> {
           responseMimeType: "application/json",
         },
       });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('DEADLINE_EXCEEDED: Gemini call timed out after 90s')), 90000)
+      );
+
+      response = await Promise.race([callPromise, timeoutPromise]);
       break;
     } catch (error: any) {
       const msg = error.message || String(error);
@@ -52,7 +59,7 @@ async function callGemini(ai: any, prompt: string): Promise<any> {
 
       console.log(`Retryable error detected. Retrying in ${Math.round(delay / 1000)}s... (${retries} attempts left)`);
       await new Promise((resolve) => setTimeout(resolve, delay));
-      delay = Math.min(delay * 2, 60000); // Cap at 60s
+      delay = Math.min(delay * 2, 30000); // Cap at 30s (was 60s)
     }
   }
 
@@ -240,16 +247,16 @@ Return a JSON object with ONLY these keys:
 Generate 4 scenarios for part4, 5-8 actors for part2, 6-8 sectors for part5, 5-10 strategic questions for part8. Keep string values concise.`,
     );
   } catch (err: any) {
-    // If call 2 fails, still return call 1 results (partial data is better than nothing)
+    // If call 2 fails, still return call 1 results with a partial flag
     console.error(
       "[Gemini] Call 2 failed, returning partial results:",
       err.message,
     );
-    return call1Result;
+    return { ...call1Result, _partial: true, _partialReason: err.message };
   }
 
-  // Merge results
-  return { ...call1Result, ...call2Result };
+  // Merge results — full success
+  return { ...call1Result, ...call2Result, _partial: false };
 }
 
 // ===== SAFE JSON REPAIR =====

@@ -137,6 +137,13 @@ async function startServer() {
   });
 
   app.post('/api/analyze', async (req, res) => {
+    // Set a 4-minute timeout for this long-running endpoint
+    req.setTimeout(240000);
+    res.setTimeout(240000);
+    // Keep-alive to prevent Nginx/proxy from closing the connection
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Keep-Alive', 'timeout=240');
+
     try {
       const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
       if (!checkRateLimit(clientIp)) {
@@ -183,6 +190,13 @@ async function startServer() {
 
       // 1. Gemini parses entities and structure
       const parsedData = await parseProblem(apiKey, problem, variables);
+
+      // Extract partial flag from Gemini service
+      const isPartial = parsedData._partial === true;
+      const partialReason = parsedData._partialReason || '';
+      // Clean internal flags from parsedData before sending to client
+      delete parsedData._partial;
+      delete parsedData._partialReason;
       
       // 2. Evidence retrieval
       const evidence = retrieveEvidence(problem, parsedData.entities);
@@ -258,20 +272,28 @@ async function startServer() {
       console.error('Failed to save analysis log:', err);
     }
 
+    if (isPartial) {
+      console.warn(`[Analyze] Returning partial results for: "${problem.substring(0, 80)}..." Reason: ${partialReason}`);
+    }
+
     res.status(200).json({
       parsedData,
       evidence,
       cipf: cipfResults,
       confidence,
       report,
-      inputs
+      inputs,
+      _partial: isPartial,
     });
 
     } catch (error: any) {
       console.error(error);
       const msg = (error.message || '').toLowerCase();
       const isCapacityError = ['unavailable', '503', 'high demand', 'resource_exhausted', 'overloaded'].some(p => msg.includes(p));
-      if (isCapacityError) {
+      const isTimeoutError = ['timeout', 'deadline_exceeded', 'timed out'].some(p => msg.includes(p));
+      if (isTimeoutError) {
+        res.status(504).json({ error: 'The analysis is taking too long. This may be due to server load. Please try again.' });
+      } else if (isCapacityError) {
         res.status(503).json({ error: 'The AI model is experiencing high demand right now. Please wait a minute and try again.' });
       } else {
         res.status(500).json({ error: error.message || 'An error occurred during analysis.' });
